@@ -1,0 +1,14 @@
+[project]
+name = "wo-api-app"
+version = "0.1.0"
+description = "Website Orchestrator API and CLI Application."
+requires-python = ">=3.11"
+dependencies = [
+    "wo-core",
+    "wo-api",
+    "wo-observability",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

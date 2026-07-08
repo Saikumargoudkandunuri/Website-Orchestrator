@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-398%20passing-brightgreen.svg)](tests)
+[![Tests](https://img.shields.io/badge/tests-704%20passing-brightgreen.svg)](tests)
 
 ## Overview
 
@@ -24,32 +24,99 @@ The Website Orchestrator is a self-hosted platform for automated website operati
 - 🏗️ **Digital Twin**: PostgreSQL-backed structured representation of crawled sites with freshness metadata
 - 🔐 **Security First**: Secrets isolated from code, credential redaction in logs, fail-closed error handling
 - 📊 **Multi-Tenant Ready**: All tables include tenant_id from day one
-- 🧪 **Property-Based Testing**: 398 comprehensive tests covering correctness properties
+- 🧪 **Property-Based Testing**: 704 comprehensive tests covering correctness properties
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      API Surface (FastAPI)                   │
-│         /crawl  /issues  /fixes  /audit-log  /docs          │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-         ┌─────────────┴────────────────┐
-         │                              │
-┌────────▼────────┐          ┌─────────▼─────────┐
-│  Crawler        │          │  Governance Layer  │
-│  (discovery)    │          │  (approve/reject)  │
-└────────┬────────┘          └─────────┬─────────┘
-         │                              │
-┌────────▼────────┐          ┌─────────▼─────────┐
-│  Digital Twin   │◄────────►│ Publishing Adapter│
-│  (PostgreSQL)   │          │  (WordPress API)  │
-└────────┬────────┘          └───────────────────┘
-         │
-┌────────▼────────┐          ┌───────────────────┐
-│  Check Engine   │          │  Fix Generator    │
-│  (detect issues)│─────────►│  (create fixes)   │
-└─────────────────┘          └───────────────────┘
+```mermaid
+flowchart TD
+    %% Milestone 1: Foundation
+    subgraph M1 [M1: Foundation]
+        API[API Surface]
+        C[Crawler]
+        DT[(Digital Twin)]
+        CE[Check Engine]
+        FG[Fix Generator]
+        Gov[Governance Layer]
+        PA[Publishing Adapter]
+    end
+
+    %% Milestone 2: Intelligence
+    subgraph M2 [M2: Intelligence]
+        Int[Intelligence Router]
+        AI[AI Providers]
+        KO[(Knowledge Objects)]
+        Gen[Content Generator]
+        Opt[Content Optimizer]
+    end
+
+    %% Milestone 3: SEO Engines
+    subgraph M3 [M3: SEO Engines]
+        Eng[Engine Registry]
+        Local[Local SEO]
+        Rep[Reputation]
+        Rank[Rank Tracking]
+        Analy[Analytics]
+        Out[Outreach]
+    end
+
+    %% Milestone 4: Growth
+    subgraph M4 [M4: Growth]
+        Grow[Growth Router]
+        Auth[Auth & Multi-Tenancy]
+        Report[Reporting]
+        Auto[Automation Engine]
+        Agency[Agency Management]
+    end
+
+    %% Milestone 5: The Brain
+    subgraph M5 [M5: The Brain]
+        Brain[SeoBrain]
+        Sched[PlatformScheduler]
+        DE[DecisionEngine]
+        HOT[HistoricalOutcomeTracker]
+        Prov[ProviderRegistry]
+    end
+
+    %% Core Connections
+    API --> C
+    C --> DT
+    DT <--> CE
+    CE --> FG
+    FG --> Gov
+    Gov --> PA
+
+    %% M2 Connections
+    API --> Int
+    Int --> KO
+    KO --> Gen & Opt
+    Gen & Opt --> AI
+
+    %% M3 Connections
+    API --> Eng
+    Eng --> Local & Rep & Rank & Analy & Out
+
+    %% M4 Connections
+    API --> Grow
+    Grow --> Auth
+    Grow --> Report & Auto & Agency
+    Auto --> Eng
+
+    %% M5 Connections
+    API --> Brain
+    Brain --> Sched
+    Brain --> DE
+    Brain --> HOT
+    Brain --> Prov
+    DE --> Auto
+    Sched --> Eng
+    Prov --> AI
+
+    style M1 fill:#f9f9f9,stroke:#333
+    style M2 fill:#e6f3ff,stroke:#333
+    style M3 fill:#e6ffe6,stroke:#333
+    style M4 fill:#fff0e6,stroke:#333
+    style M5 fill:#f3e6ff,stroke:#333
 ```
 
 ### Package Structure
@@ -65,11 +132,15 @@ Website-Orchestrator/
 │   ├── publishing_adapter/# WordPress REST API client
 │   ├── governance/        # Approval workflow and audit trail
 │   ├── api/              # FastAPI HTTP surface
-│   ├── ai_generator/     # (Future: LLM integration)
-│   ├── intelligence/     # (Future: AI-powered analysis)
-│   ├── engines/          # (Future: Advanced SEO engines)
-│   └── growth/           # (Future: Growth and analytics)
+│   ├── ai_generator/     # Legacy AI components
+│   ├── intelligence/     # M2: AI-powered analysis & knowledge extraction
+│   ├── engines/          # M3: Advanced SEO engines
+│   ├── growth/           # M4: Growth, reporting, and automation
+│   ├── brain/            # M5: The Brain (Decision Engine & Scheduling)
+│   ├── observability/    # M5: End-to-end tracing and aggregator
+│   └── agentic/          # M6: Agentic runtime, memory, planning, and multi-agent collaboration
 └── apps/
+    ├── api/              # API and CLI scripts
     └── e2e/              # End-to-end proof-of-loop tests
 ```
 

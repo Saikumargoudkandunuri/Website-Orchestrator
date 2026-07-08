@@ -37,3 +37,9 @@ htmlcov/
 secrets.*
 credentials.*
 *.credentials
+
+# Node.js dependencies
+node_modules/
+dist-ssr/
+*.local
+

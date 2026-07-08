@@ -27,8 +27,13 @@ dependencies = [
     "wo-intelligence",
     "wo-engines",
     "wo-growth",
+    "wo-brain",
     "wo-publishing-adapter",
     "wo-governance",
+    "wo-observability",
+    "wo-agentic",
+    "wo-enterprise-intelligence",
+    "wo-saas",
     "wo-api",
     "wo-e2e",
 ]
@@ -56,8 +61,13 @@ wo-ai-generator = { workspace = true }
 wo-intelligence = { workspace = true }
 wo-engines = { workspace = true }
 wo-growth = { workspace = true }
+wo-brain = { workspace = true }
 wo-publishing-adapter = { workspace = true }
 wo-governance = { workspace = true }
+wo-observability = { workspace = true }
+wo-agentic = { workspace = true }
+wo-enterprise-intelligence = { workspace = true }
+wo-saas = { workspace = true }
 wo-api = { workspace = true }
 wo-e2e = { workspace = true }
 

@@ -5,19 +5,25 @@ requires-python = ">=3.11"
 [manifest]
 members = [
     "website-orchestrator",
+    "wo-agentic",
     "wo-ai-generator",
     "wo-api",
+    "wo-api-app",
+    "wo-brain",
     "wo-check-engine",
     "wo-core",
     "wo-crawler",
     "wo-digital-twin",
     "wo-e2e",
     "wo-engines",
+    "wo-enterprise-intelligence",
     "wo-fix-generator",
     "wo-governance",
     "wo-growth",
     "wo-intelligence",
+    "wo-observability",
     "wo-publishing-adapter",
+    "wo-saas",
 ]
 
 [[package]]
@@ -1254,19 +1260,24 @@ name = "website-orchestrator"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "wo-agentic" },
     { name = "wo-ai-generator" },
     { name = "wo-api" },
+    { name = "wo-brain" },
     { name = "wo-check-engine" },
     { name = "wo-core" },
     { name = "wo-crawler" },
     { name = "wo-digital-twin" },
     { name = "wo-e2e" },
     { name = "wo-engines" },
+    { name = "wo-enterprise-intelligence" },
     { name = "wo-fix-generator" },
     { name = "wo-governance" },
     { name = "wo-growth" },
     { name = "wo-intelligence" },
+    { name = "wo-observability" },
     { name = "wo-publishing-adapter" },
+    { name = "wo-saas" },
 ]
 
 [package.dev-dependencies]
@@ -1277,19 +1288,24 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "wo-agentic", editable = "packages/agentic" },
     { name = "wo-ai-generator", editable = "packages/ai_generator" },
     { name = "wo-api", editable = "packages/api" },
+    { name = "wo-brain", editable = "packages/brain" },
     { name = "wo-check-engine", editable = "packages/check_engine" },
     { name = "wo-core", editable = "packages/core" },
     { name = "wo-crawler", editable = "packages/crawler" },
     { name = "wo-digital-twin", editable = "packages/digital_twin" },
     { name = "wo-e2e", editable = "apps/e2e" },
     { name = "wo-engines", editable = "packages/engines" },
+    { name = "wo-enterprise-intelligence", editable = "packages/enterprise_intelligence" },
     { name = "wo-fix-generator", editable = "packages/fix_generator" },
     { name = "wo-governance", editable = "packages/governance" },
     { name = "wo-growth", editable = "packages/growth" },
     { name = "wo-intelligence", editable = "packages/intelligence" },
+    { name = "wo-observability", editable = "packages/observability" },
     { name = "wo-publishing-adapter", editable = "packages/publishing_adapter" },
+    { name = "wo-saas", editable = "packages/saas" },
 ]
 
 [package.metadata.requires-dev]
@@ -1358,6 +1374,25 @@ wheels = [
 ]
 
 [[package]]
+name = "wo-agentic"
+version = "0.1.0"
+source = { editable = "packages/agentic" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "wo-brain" },
+    { name = "wo-core" },
+    { name = "wo-growth" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2.4.0" },
+    { name = "wo-brain", editable = "packages/brain" },
+    { name = "wo-core", editable = "packages/core" },
+    { name = "wo-growth", editable = "packages/growth" },
+]
+
+[[package]]
 name = "wo-ai-generator"
 version = "0.1.0"
 source = { editable = "packages/ai_generator" }
@@ -1405,6 +1440,46 @@ requires-dist = [
     { name = "wo-governance", editable = "packages/governance" },
     { name = "wo-intelligence", editable = "packages/intelligence" },
     { name = "wo-publishing-adapter", editable = "packages/publishing_adapter" },
+]
+
+[[package]]
+name = "wo-api-app"
+version = "0.1.0"
+source = { editable = "apps/api" }
+dependencies = [
+    { name = "wo-api" },
+    { name = "wo-core" },
+    { name = "wo-observability" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "wo-api", editable = "packages/api" },
+    { name = "wo-core", editable = "packages/core" },
+    { name = "wo-observability", editable = "packages/observability" },
+]
+
+[[package]]
+name = "wo-brain"
+version = "0.1.0"
+source = { editable = "packages/brain" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "sqlalchemy" },
+    { name = "wo-core" },
+    { name = "wo-engines" },
+    { name = "wo-growth" },
+    { name = "wo-intelligence" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "sqlalchemy" },
+    { name = "wo-core", editable = "packages/core" },
+    { name = "wo-engines", editable = "packages/engines" },
+    { name = "wo-growth", editable = "packages/growth" },
+    { name = "wo-intelligence", editable = "packages/intelligence" },
 ]
 
 [[package]]
@@ -1532,6 +1607,31 @@ requires-dist = [
 ]
 
 [[package]]
+name = "wo-enterprise-intelligence"
+version = "0.1.0"
+source = { editable = "packages/enterprise_intelligence" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "wo-agentic" },
+    { name = "wo-brain" },
+    { name = "wo-core" },
+    { name = "wo-engines" },
+    { name = "wo-growth" },
+    { name = "wo-intelligence" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2.4.0" },
+    { name = "wo-agentic", editable = "packages/agentic" },
+    { name = "wo-brain", editable = "packages/brain" },
+    { name = "wo-core", editable = "packages/core" },
+    { name = "wo-engines", editable = "packages/engines" },
+    { name = "wo-growth", editable = "packages/growth" },
+    { name = "wo-intelligence", editable = "packages/intelligence" },
+]
+
+[[package]]
 name = "wo-fix-generator"
 version = "0.1.0"
 source = { editable = "packages/fix_generator" }
@@ -1604,6 +1704,17 @@ requires-dist = [
 ]
 
 [[package]]
+name = "wo-observability"
+version = "0.1.0"
+source = { editable = "packages/observability" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.0" }]
+
+[[package]]
 name = "wo-publishing-adapter"
 version = "0.1.0"
 source = { editable = "packages/publishing_adapter" }
@@ -1616,4 +1727,33 @@ dependencies = [
 requires-dist = [
     { name = "httpx" },
     { name = "wo-core", editable = "packages/core" },
+]
+
+[[package]]
+name = "wo-saas"
+version = "0.1.0"
+source = { editable = "packages/saas" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "pydantic" },
+    { name = "sqlalchemy" },
+    { name = "wo-agentic" },
+    { name = "wo-brain" },
+    { name = "wo-core" },
+    { name = "wo-engines" },
+    { name = "wo-growth" },
+    { name = "wo-intelligence" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi" },
+    { name = "pydantic", specifier = ">=2.4.0" },
+    { name = "sqlalchemy", specifier = ">=2.0.0" },
+    { name = "wo-agentic", editable = "packages/agentic" },
+    { name = "wo-brain", editable = "packages/brain" },
+    { name = "wo-core", editable = "packages/core" },
+    { name = "wo-engines", editable = "packages/engines" },
+    { name = "wo-growth", editable = "packages/growth" },
+    { name = "wo-intelligence", editable = "packages/intelligence" },
 ]

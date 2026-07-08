@@ -1,0 +1,70 @@
+/* Design system tokens and shared CSS custom properties */
+
+:root {
+  /* Color system - 10-shade palette per hue (HSL custom tokens) */
+  --slate-50: 210 40% 98%;
+  --slate-100: 210 40% 96.1%;
+  --slate-200: 214 32% 91%;
+  --slate-300: 213 27% 84%;
+  --slate-400: 215 20% 65%;
+  --slate-500: 215 16% 47%;
+  --slate-600: 215 19% 35%;
+  --slate-700: 215 25% 27%;
+  --slate-800: 217 33% 17%;
+  --slate-900: 222 47% 11.2%;
+  --slate-950: 222 47% 6%;
+
+  --violet-50: 250 100% 97.5%;
+  --violet-100: 250 95% 94%;
+  --violet-500: 250 95% 60%;
+  --violet-600: 250 90% 55%;
+  --violet-700: 250 85% 45%;
+
+  /* Spacing system (4px base grid) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* Typography scale */
+  --font-xs: 0.75rem;
+  --font-sm: 0.875rem;
+  --font-base: 1rem;
+  --font-lg: 1.125rem;
+  --font-xl: 1.25rem;
+  --font-2xl: 1.5rem;
+
+  /* Elevation shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  /* Transition curves */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-normal: 150ms;
+}
+
+/* Dark mode overrides (persisted custom class overrides prefers-color-scheme) */
+.dark {
+  --background: var(--slate-950);
+  --foreground: var(--slate-50);
+  --card: var(--slate-900);
+  --border: var(--slate-800);
+}
+
+.light {
+  --background: var(--slate-50);
+  --foreground: var(--slate-950);
+  --card: 0 0% 100%;
+  --border: var(--slate-200);
+}
+
+/* Glassmorphism filters with backdrop fallbacks */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}

@@ -135,6 +135,9 @@ def build_growth_container(
     )
 
 
+from functools import lru_cache
+
+@lru_cache(maxsize=1)
 def build_default_growth() -> GrowthContainer:
     """Build the production GrowthContainer from Core settings."""
     from core.config import get_settings

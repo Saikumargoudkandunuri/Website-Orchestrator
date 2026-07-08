@@ -1,0 +1,13 @@
+{
+  "name": "design-system",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "tokens.ts",
+  "dependencies": {
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

@@ -14,7 +14,8 @@ TENANT = "tenant-test"  # matches the conftest fixtures
 def client(container, sample_page, page_id):
     # Seed the crawl snapshot the analyze endpoint runs against.
     container.snapshot_repo.upsert(TENANT, page_id, sample_page, crawl_id="c1")
-    app = create_app(intelligence=container)
+    from unittest.mock import MagicMock
+    app = create_app(intelligence=container, subsystems=MagicMock())
     return TestClient(app)
 
 

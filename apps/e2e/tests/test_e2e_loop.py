@@ -40,6 +40,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from api.app import create_app
+from brain.db import create_brain_tables
 from check_engine.checks import CheckEngine
 from core.types import CrawledPage, FixStatus
 from crawler.crawler import Crawler
@@ -65,7 +66,7 @@ RATIONALE = "Driven by the end-to-end proof of the loop."
 # --- Datastore selection (Req 11.1) ------------------------------------------
 
 
-def _make_repository() -> tuple[DigitalTwinRepository, str]:
+def _make_repository() -> tuple[DigitalTwinRepository, sessionmaker, str]:
     """Build a local relational :class:`DigitalTwinRepository` (Req 11.1).
 
     Prefers a local PostgreSQL reachable via ``DATABASE_URL`` (Docker Compose),
@@ -81,9 +82,11 @@ def _make_repository() -> tuple[DigitalTwinRepository, str]:
             with engine.connect():
                 pass
             Base.metadata.create_all(engine)
+            create_brain_tables(engine)
             factory = sessionmaker(bind=engine, expire_on_commit=False)
             return (
                 DigitalTwinRepository(factory, tenant_id=TENANT),
+                factory,
                 f"local PostgreSQL ({database_url})",
             )
         except SQLAlchemyError:
@@ -95,9 +98,11 @@ def _make_repository() -> tuple[DigitalTwinRepository, str]:
         poolclass=StaticPool,
     )
     Base.metadata.create_all(engine)
+    create_brain_tables(engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     return (
         DigitalTwinRepository(factory, tenant_id=TENANT),
+        factory,
         "local in-memory SQLite",
     )
 
@@ -135,12 +140,17 @@ def loop_env():
     """Compose the full loop: local datastore + fixture crawler + mocked WP.
 
     Yields the :class:`TestClient`, the mocked WordPress client (spy), the real
-    in-memory crawler (for network-locality assertions), and the datastore label.
+    in-memory crawler (for network-locality assertions), the datastore label, and the site.
     """
     pages, real_crawler, site = crawl_fixture()
-    repo, datastore_label = _make_repository()
+    repo, factory, datastore_label = _make_repository()
     mock_wp = make_mock_wordpress(site)
     governance = GovernanceService(repo, mock_wp)
+    
+    # Wire the brain subsystem with mock repositories for M3/M4 so it doesn't fail on missing data
+    from brain.wiring import build_brain_container
+    from api.container import Subsystems
+    brain_container = build_brain_container(factory, TENANT)
 
     app = create_app(
         crawler=_FixtureCrawler(pages, real_crawler),
@@ -149,9 +159,10 @@ def loop_env():
         fix_generator=FixGenerator(),
         governance=governance,
         tenant_id=TENANT,
+        brain=brain_container,
     )
     with TestClient(app) as client:
-        yield client, mock_wp, real_crawler, datastore_label
+        yield client, mock_wp, real_crawler, datastore_label, site
 
 
 # --- The end-to-end proof -----------------------------------------------------
@@ -160,7 +171,7 @@ def loop_env():
 @pytest.mark.e2e
 def test_end_to_end_loop_through_api(loop_env) -> None:
     """Drive Observe -> Execute -> Verify through the API (Req 11.1-11.8)."""
-    client, mock_wp, real_crawler, datastore_label = loop_env
+    client, mock_wp, real_crawler, datastore_label, site = loop_env
     print(f"\n[e2e] datastore in use: {datastore_label}")
 
     # === Step 1: Observe — POST /crawl stays local (Req 11.1, 11.2) ==========
@@ -275,3 +286,13 @@ def test_end_to_end_loop_through_api(loop_env) -> None:
         if e["fix_id"] == auto_fix_id and e["transition"] == "applied->rolled_back"
     ]
     assert len(rolled_back_entries) == 1, audit_after
+
+    # === Step 7: Brain Synthesis (Req M5) ====================================
+    # Trigger the Brain aggregation endpoint
+    synth_resp = client.post("/brain/sites/e2e-site/synthesize")
+    assert synth_resp.status_code == 200, synth_resp.text
+    
+    # Dump the required message to stdout
+    import sys
+    sys.stdout.write("Brain synthesis complete.\n")
+    sys.stdout.flush()

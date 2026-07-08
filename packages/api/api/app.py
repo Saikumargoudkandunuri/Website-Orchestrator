@@ -82,6 +82,13 @@ def create_app(
     subsystems: Subsystems | None = None,
     intelligence: object | None = None,
     growth: object | None = None,
+    brain: object | None = None,
+    agentic_planning: object | None = None,
+    goal_repo: object | None = None,
+    agentic_memory: object | None = None,
+    agentic_runtime: object | None = None,
+    agentic_reflection: object | None = None,
+    agentic_agents: object | None = None,
 ) -> FastAPI:
     """Create and configure the Website Orchestrator FastAPI application.
 
@@ -103,7 +110,7 @@ def create_app(
     -------
     FastAPI
         The configured application, with the subsystem bundle on ``app.state``
-        and automatic OpenAPI docs at ``/docs`` (Req 10.9).
+        and automatic OpenAPI docs at ``/docs (Req 10.9).
     """
     app = FastAPI(
         title="Website Orchestrator API",
@@ -136,7 +143,40 @@ def create_app(
         is_production=is_production,
     )
     _mount_growth(app, growth=growth, is_production=is_production)
+    _mount_brain(app, brain=brain, is_production=is_production)
+    _mount_agentic(
+        app,
+        agentic_planning=agentic_planning,
+        goal_repo=goal_repo,
+        is_production=is_production,
+    )
+    _mount_agentic_memory(
+        app,
+        agentic_memory=agentic_memory,
+        is_production=is_production,
+    )
+    _mount_agentic_runtime(
+        app,
+        agentic_runtime=agentic_runtime,
+        is_production=is_production,
+    )
+    _mount_agentic_reflection(
+        app,
+        agentic_reflection=agentic_reflection,
+        is_production=is_production,
+    )
+    _mount_agentic_agents(
+        app,
+        agentic_agents=agentic_agents,
+        is_production=is_production,
+    )
+    _mount_saas(app, is_production=is_production)
     return app
+
+
+
+
+
 
 
 def _mount_growth(app: FastAPI, *, growth: object | None, is_production: bool) -> None:
@@ -158,6 +198,461 @@ def _mount_growth(app: FastAPI, *, growth: object | None, is_production: bool) -
         return
     app.state.growth = container
     app.include_router(build_growth_router())
+
+
+def _mount_brain(app: FastAPI, *, brain: object | None, is_production: bool) -> None:
+    """Mount the Milestone 5 brain router additively."""
+    from brain.api import BrainContainer, build_default_brain, build_brain_router
+
+    container = brain
+    if container is None and is_production:
+        try:
+            from core.config import get_settings
+
+            if get_settings().brain_engine_enabled:
+                container = build_default_brain()
+        except Exception:  # noqa: BLE001 - no config/datastore => do not mount
+            container = None
+    if container is None:
+        return
+    if not isinstance(container, BrainContainer):  # pragma: no cover - defensive
+        return
+    app.state.brain = container
+    app.include_router(build_brain_router())
+
+
+def _mount_agentic(
+    app: FastAPI,
+    *,
+    agentic_planning: object | None,
+    goal_repo: object | None,
+    is_production: bool,
+) -> None:
+    """Mount the Milestone 6 agentic planning router additively."""
+    from agentic.planning.wiring import PlanningContainer, build_planning_container
+    from agentic.planning.api import build_planning_router
+    from agentic.goal.repositories import InMemoryGoalRepository, SqlAlchemyGoalRepository
+    from agentic.tools.registry import build_default_tool_registry
+    from intelligence.ai.providers.fake_provider import FakeProvider
+
+    container = agentic_planning
+    resolved_goal_repo = goal_repo
+
+    if container is None and is_production:
+        try:
+            from core.config import get_settings
+            from digital_twin.db import create_db_engine, make_session_factory
+            from brain.db import BrainBase
+
+            settings = get_settings()
+            if getattr(settings, "agentic_engine_enabled", True):
+                engine = create_db_engine(settings.database_url)
+                # Ensure agentic tables exist in the DB
+                from agentic.planning.repositories import PlanRecord, ExecutionGraphRecord, SimulationRecord
+                from agentic.goal.repositories import GoalRecord
+                BrainBase.metadata.create_all(engine)
+                session_factory = make_session_factory(engine)
+                
+                # Resolve brain container and intelligence provider
+                brain_container = getattr(app.state, "brain", None)
+                intel_container = getattr(app.state, "intelligence", None)
+                
+                provider = intel_container.provider if intel_container else FakeProvider()
+                registry = build_default_tool_registry()
+                
+                if brain_container:
+                    container = build_planning_container(
+                        session_factory,
+                        settings.tenant_id,
+                        provider=provider,
+                        registry=registry,
+                        kg_repo=brain_container.kg_repo,
+                        historical_repo=brain_container.historical_repo,
+                        decision_engine=brain_container.decision_engine,
+                    )
+                
+                if resolved_goal_repo is None:
+                    resolved_goal_repo = SqlAlchemyGoalRepository(session_factory, tenant_id=settings.tenant_id)
+        except Exception:
+            container = None
+            resolved_goal_repo = None
+
+    if container is None:
+        # Fallback/tests default if not fully set up
+        if getattr(app.state, "brain", None):
+            brain_container = app.state.brain
+            intel_container = getattr(app.state, "intelligence", None)
+            provider = intel_container.provider if intel_container else FakeProvider()
+            registry = build_default_tool_registry()
+            
+            # Simple mock/in-memory session_source for fallback
+            from sqlalchemy import create_engine
+            from sqlalchemy.orm import sessionmaker
+            fallback_engine = create_engine("sqlite:///:memory:")
+            from brain.db import BrainBase
+            BrainBase.metadata.create_all(fallback_engine)
+            fallback_session_factory = sessionmaker(bind=fallback_engine)
+            
+            container = build_planning_container(
+                fallback_session_factory,
+                "default",
+                provider=provider,
+                registry=registry,
+                kg_repo=brain_container.kg_repo,
+                historical_repo=brain_container.historical_repo,
+                decision_engine=brain_container.decision_engine,
+            )
+            if resolved_goal_repo is None:
+                resolved_goal_repo = InMemoryGoalRepository()
+        else:
+            return
+
+    app.state.agentic_planning = container
+    app.state.goal_repository = resolved_goal_repo
+    app.include_router(build_planning_router())
+
+
+def _mount_agentic_memory(
+    app: FastAPI,
+    *,
+    agentic_memory: object | None,
+    is_production: bool,
+) -> None:
+    """Mount the Milestone 6 cognitive memory router additively."""
+    from agentic.memory.wiring import MemoryContainer, build_memory_container
+    from agentic.memory.api import build_memory_router
+
+    container = agentic_memory
+
+    if container is None and is_production:
+        try:
+            from core.config import get_settings
+            from digital_twin.db import create_db_engine, make_session_factory
+            from brain.db import BrainBase
+
+            settings = get_settings()
+            if getattr(settings, "agentic_engine_enabled", True):
+                engine = create_db_engine(settings.database_url)
+                # Ensure memory tables exist
+                from agentic.memory.repositories import (
+                    EpisodeRecord,
+                    SemanticFactRecord,
+                    WorkflowTemplateRecord,
+                    ReflectionLessonRecord,
+                    GoalMemoryRecordRow,
+                    MemoryIndexRecord,
+                )
+                BrainBase.metadata.create_all(engine)
+                session_factory = make_session_factory(engine)
+                
+                # Retrieve upstream references from other containers if available
+                brain_container = getattr(app.state, "brain", None)
+                intel_container = getattr(app.state, "intelligence", None)
+                
+                ko_repo = intel_container.knowledge_repo if intel_container else None
+                ai_invocation_repo = intel_container.invocation_repo if intel_container else None
+                
+                kg_repo = brain_container.kg_repo if brain_container else None
+                decision_repo = brain_container.decision_repo if brain_container else None
+                synthesis_repo = brain_container.synthesis_repo if brain_container else None
+                historical_repo = brain_container.historical_repo if brain_container else None
+                
+                container = build_memory_container(
+                    session_factory,
+                    settings.tenant_id,
+                    ko_repo=ko_repo,
+                    kg_repo=kg_repo,
+                    decision_repo=decision_repo,
+                    synthesis_repo=synthesis_repo,
+                    historical_repo=historical_repo,
+                    ai_invocation_repo=ai_invocation_repo,
+                )
+        except Exception:
+            container = None
+
+    if container is None:
+        # Fallback/tests default if not fully set up
+        intel_container = getattr(app.state, "intelligence", None)
+        brain_container = getattr(app.state, "brain", None)
+        
+        # Instantiate a clean sqlite database for tests
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        
+        engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        from brain.db import BrainBase
+        from agentic.memory.repositories import (
+            EpisodeRecord,
+            SemanticFactRecord,
+            WorkflowTemplateRecord,
+            ReflectionLessonRecord,
+            GoalMemoryRecordRow,
+            MemoryIndexRecord,
+        )
+        BrainBase.metadata.create_all(engine)
+        session_factory = sessionmaker(bind=engine)
+        
+        ko_repo = intel_container.knowledge_repo if intel_container else None
+        ai_invocation_repo = intel_container.invocation_repo if intel_container else None
+        
+        kg_repo = brain_container.kg_repo if brain_container else None
+        decision_repo = brain_container.decision_repo if brain_container else None
+        synthesis_repo = brain_container.synthesis_repo if brain_container else None
+        historical_repo = brain_container.historical_repo if brain_container else None
+        
+        container = build_memory_container(
+            session_factory,
+            "default",
+            ko_repo=ko_repo,
+            kg_repo=kg_repo,
+            decision_repo=decision_repo,
+            synthesis_repo=synthesis_repo,
+            historical_repo=historical_repo,
+            ai_invocation_repo=ai_invocation_repo,
+        )
+
+    app.state.agentic_memory = container
+    app.include_router(build_memory_router())
+
+
+def _mount_agentic_runtime(
+    app: FastAPI,
+    *,
+    agentic_runtime: object | None,
+    is_production: bool,
+) -> None:
+    """Mount the Milestone 6 agentic runtime router additively."""
+    from agentic.runtime.wiring import RuntimeContainer, build_runtime_container
+    from agentic.runtime.api import build_runtime_router
+    from agentic.tools.registry import build_default_tool_registry
+
+    container = agentic_runtime
+
+    if container is None and is_production:
+        try:
+            from core.config import get_settings
+            from digital_twin.db import create_db_engine, make_session_factory
+            from brain.db import BrainBase
+
+            settings = get_settings()
+            if getattr(settings, "agentic_engine_enabled", True):
+                engine = create_db_engine(settings.database_url)
+                # Ensure runtime tables exist
+                from agentic.runtime.repositories import CheckpointRecord, ExecutionRecordRow, ExecutionMetricsRecord
+                BrainBase.metadata.create_all(engine)
+                session_factory = make_session_factory(engine)
+                
+                # Fetch memory manager and registry
+                memory_container = getattr(app.state, "agentic_memory", None)
+                registry = build_default_tool_registry()
+                
+                if memory_container:
+                    container = build_runtime_container(
+                        session_factory,
+                        settings.tenant_id,
+                        registry=registry,
+                        memory_manager=memory_container.manager,
+                    )
+        except Exception:
+            container = None
+
+    if container is None:
+        # Fallback/tests default if not fully set up
+        memory_container = getattr(app.state, "agentic_memory", None)
+        registry = build_default_tool_registry()
+        
+        # Instantiate sqlite engine for tests
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        
+        engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        from brain.db import BrainBase
+        from agentic.runtime.repositories import CheckpointRecord, ExecutionRecordRow, ExecutionMetricsRecord
+        BrainBase.metadata.create_all(engine)
+        session_factory = sessionmaker(bind=engine)
+        
+        if memory_container:
+            container = build_runtime_container(
+                session_factory,
+                "default",
+                registry=registry,
+                memory_manager=memory_container.manager,
+            )
+
+    app.state.agentic_runtime = container
+    if container:
+        app.include_router(build_runtime_router())
+
+
+def _mount_agentic_reflection(
+    app: FastAPI,
+    *,
+    agentic_reflection: object | None,
+    is_production: bool,
+) -> None:
+    """Mount the Milestone 6 agentic reflection/learning router additively."""
+    from agentic.reflection.wiring import ReflectionContainer, build_reflection_container
+    from agentic.reflection.api import build_reflection_router
+
+    container = agentic_reflection
+
+    if container is None and is_production:
+        try:
+            from core.config import get_settings
+            from digital_twin.db import create_db_engine, make_session_factory
+            from brain.db import BrainBase
+
+            settings = get_settings()
+            if getattr(settings, "agentic_engine_enabled", True):
+                engine = create_db_engine(settings.database_url)
+                # Ensure reflection tables exist
+                from agentic.reflection.repositories import (
+                    ReflectionReportRecord,
+                    ProviderScoreRecord,
+                    ToolScoreRecord,
+                    ConfidenceCalibrationRecord,
+                )
+                BrainBase.metadata.create_all(engine)
+                session_factory = make_session_factory(engine)
+                
+                # Fetch memory container
+                memory_container = getattr(app.state, "agentic_memory", None)
+                
+                if memory_container:
+                    container = build_reflection_container(
+                        session_factory,
+                        settings.tenant_id,
+                        memory_manager=memory_container.manager,
+                    )
+        except Exception:
+            container = None
+
+    if container is None:
+        # Fallback/tests default if not fully set up
+        memory_container = getattr(app.state, "agentic_memory", None)
+        
+        # Instantiate sqlite engine for tests
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        
+        engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        from brain.db import BrainBase
+        from agentic.reflection.repositories import (
+            ReflectionReportRecord,
+            ProviderScoreRecord,
+            ToolScoreRecord,
+            ConfidenceCalibrationRecord,
+        )
+        BrainBase.metadata.create_all(engine)
+        session_factory = sessionmaker(bind=engine)
+        
+        if memory_container:
+            container = build_reflection_container(
+                session_factory,
+                "default",
+                memory_manager=memory_container.manager,
+            )
+
+    app.state.agentic_reflection = container
+    if container:
+        app.include_router(build_reflection_router())
+
+
+def _mount_agentic_agents(
+    app: FastAPI,
+    *,
+    agentic_agents: object | None,
+    is_production: bool,
+) -> None:
+    """Mount the Milestone 6 multi-agent router additively."""
+    from agentic.agents.wiring import AgentContainer, build_agent_container
+    from agentic.agents.api import build_agent_router
+
+    container = agentic_agents
+
+    if container is None and is_production:
+        try:
+            from core.config import get_settings
+            from digital_twin.db import create_db_engine, make_session_factory
+            from brain.db import BrainBase
+
+            settings = get_settings()
+            if getattr(settings, "agentic_engine_enabled", True):
+                engine = create_db_engine(settings.database_url)
+                # Ensure agent tables exist
+                from agentic.agents.repositories import (
+                    MissionRecord,
+                    BlackboardEntryRecord,
+                    MessageRecord,
+                )
+                BrainBase.metadata.create_all(engine)
+                session_factory = make_session_factory(engine)
+                
+                # Fetch runtime container
+                runtime_container = getattr(app.state, "agentic_runtime", None)
+                
+                if runtime_container:
+                    container = build_agent_container(
+                        session_factory,
+                        settings.tenant_id,
+                        runtime=runtime_container.runtime,
+                    )
+        except Exception:
+            container = None
+
+    if container is None:
+        # Fallback/tests default if not fully set up
+        runtime_container = getattr(app.state, "agentic_runtime", None)
+        
+        # Instantiate sqlite engine for tests
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        
+        engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        from brain.db import BrainBase
+        from agentic.agents.repositories import (
+            MissionRecord,
+            BlackboardEntryRecord,
+            MessageRecord,
+        )
+        BrainBase.metadata.create_all(engine)
+        session_factory = sessionmaker(bind=engine)
+        
+        if runtime_container:
+            container = build_agent_container(
+                session_factory,
+                "default",
+                runtime=runtime_container.runtime,
+            )
+
+    app.state.agentic_agents = container
+    if container:
+        app.include_router(build_agent_router())
+
+
+
+
+
 
 def _mount_intelligence(
     app: FastAPI, *, intelligence: object | None, is_production: bool
@@ -249,6 +744,12 @@ def _register_exception_handlers(app: FastAPI) -> None:
     async def _invalid_crawl_request(
         request: Request, exc: InvalidCrawlRequest
     ) -> JSONResponse:
+        try:
+            from observability.aggregator import get_aggregator
+            get_aggregator().record_error(exc, context={"url": request.url._url})
+        except ImportError:
+            pass  # Fail gracefully if not installed
+        
         return JSONResponse(
             status_code=422,
             content={"detail": f"Invalid crawl request: {exc}"},
@@ -275,6 +776,12 @@ def _register_exception_handlers(app: FastAPI) -> None:
           BeforeReadError) -> ``502`` (the decision could not be completed).
         """
         status_code = _GOVERNANCE_STATUS.get(type(exc), 502)
+        try:
+            from observability.aggregator import get_aggregator
+            get_aggregator().record_error(exc, context={"url": request.url._url, "status_code": status_code})
+        except ImportError:
+            pass
+            
         return JSONResponse(
             status_code=status_code,
             content={"detail": f"Governance decision failed: {exc}"},
@@ -290,6 +797,12 @@ def _register_exception_handlers(app: FastAPI) -> None:
         Publishing_Adapter error's message (Req 7.10), so echoing the reason is
         safe.
         """
+        try:
+            from observability.aggregator import get_aggregator
+            get_aggregator().record_error(exc, context={"url": request.url._url})
+        except ImportError:
+            pass
+            
         return JSONResponse(
             status_code=502,
             content={"detail": f"Publishing the decision failed: {exc}"},
@@ -448,3 +961,128 @@ def _register_routes(app: FastAPI) -> None:
         Audit_Trail already ordered most-recent first.
         """
         return digital_twin.list_audit_entries(tenant_id)
+
+
+def _mount_saas(app: FastAPI, is_production: bool) -> None:
+    """Mount all SaaS experience modules (workspace, enterprise, analytics, automation, collab, copilot, marketplace) additively."""
+    try:
+        from core.config import get_settings
+        from digital_twin.db import create_db_engine, make_session_factory
+        from saas.db import create_saas_tables
+        from intelligence.ai.providers.fake_provider import FakeProvider
+
+        settings = get_settings()
+        engine = create_db_engine(settings.database_url)
+        create_saas_tables(engine)
+        session_factory = make_session_factory(engine)
+        
+        # Instantiate Workspace
+        from saas.workspace.repositories import WorkspaceRepository, CanvasRepository
+        from saas.workspace.services import (
+            WorkspaceService,
+            CanvasService,
+            CommandPaletteService,
+            DashboardBuilderService,
+        )
+        from saas.workspace.api import build_workspace_router
+        ws_repo = WorkspaceRepository(session_factory, tenant_id=settings.tenant_id)
+        canvas_repo = CanvasRepository(session_factory, tenant_id=settings.tenant_id)
+        ws_service = WorkspaceService(ws_repo)
+        canvas_service = CanvasService(canvas_repo)
+        cmd_service = CommandPaletteService()
+        app.include_router(build_workspace_router(ws_service, canvas_service, cmd_service))
+
+        # Instantiate Enterprise
+        from saas.enterprise.repositories import EnterpriseRepository
+        from saas.enterprise.services import (
+            AccessControlService,
+            UsageMeterService,
+            AuditLogService,
+            StripeService,
+        )
+        from saas.enterprise.api import build_enterprise_router
+        ent_repo = EnterpriseRepository(session_factory, tenant_id=settings.tenant_id)
+        rbac = AccessControlService(ent_repo)
+        meter = UsageMeterService()
+        audit = AuditLogService(ent_repo)
+        stripe = StripeService()
+        app.include_router(build_enterprise_router(rbac, meter, audit, stripe))
+
+        # Instantiate Analytics
+        from saas.analytics.repositories import AnalyticsRepository
+        from saas.analytics.services import (
+            AnalyticsAggregatorService,
+            ReportGeneratorService,
+            KPIEvaluatorService,
+            AlertRuleService,
+        )
+        from saas.analytics.api import build_analytics_router
+        analytics_repo = AnalyticsRepository(session_factory, tenant_id=settings.tenant_id)
+        aggregator = AnalyticsAggregatorService(analytics_repo)
+        generator = ReportGeneratorService()
+        kpi = KPIEvaluatorService()
+        alerts = AlertRuleService(analytics_repo)
+        app.include_router(build_analytics_router(aggregator, generator, kpi, alerts))
+
+        # Instantiate Automation
+        from saas.automation.repositories import AutomationRepository
+        from saas.automation.services import (
+            AutomationEngineService,
+            SandboxRunnerService,
+            NotificationAdapterService,
+        )
+        from saas.automation.api import build_automation_router
+        auto_repo = AutomationRepository(session_factory, tenant_id=settings.tenant_id)
+        sandbox = SandboxRunnerService()
+        notifier = NotificationAdapterService()
+        engine_service = AutomationEngineService(auto_repo, sandbox, notifier)
+        app.include_router(build_automation_router(engine_service))
+
+        # Instantiate Collaboration
+        from saas.collaboration.repositories import CollaborationRepository
+        from saas.collaboration.services import (
+            ThreadService,
+            DecisionLogService,
+            NotificationService,
+        )
+        from saas.collaboration.api import build_collaboration_router
+        collab_repo = CollaborationRepository(session_factory, tenant_id=settings.tenant_id)
+        threads = ThreadService(collab_repo)
+        decisions = DecisionLogService(collab_repo)
+        notifications = NotificationService(collab_repo)
+        app.include_router(build_collaboration_router(threads, decisions, notifications))
+
+        # Instantiate Copilot
+        from saas.copilot.repositories import CopilotRepository
+        from saas.copilot.services import (
+            CopilotService,
+            ContextCollectorService,
+            ExplanationEngineService,
+        )
+        from saas.copilot.api import build_copilot_router
+        copilot_repo = CopilotRepository(session_factory, tenant_id=settings.tenant_id)
+        
+        intel_container = getattr(app.state, "intelligence", None)
+        provider = intel_container.provider if intel_container else FakeProvider()
+        copilot_service = CopilotService(copilot_repo, provider)
+        collector = ContextCollectorService()
+        explanations = ExplanationEngineService(copilot_repo)
+        app.include_router(build_copilot_router(copilot_service, collector, explanations))
+
+        # Instantiate Marketplace
+        from saas.marketplace.repositories import MarketplaceRepository
+        from saas.marketplace.services import (
+            AppRegistryService,
+            AppInstallationService,
+            OAuthServerService,
+        )
+        from saas.marketplace.api import build_marketplace_router
+        market_repo = MarketplaceRepository(session_factory, tenant_id=settings.tenant_id)
+        registry = AppRegistryService(market_repo)
+        installer = AppInstallationService(market_repo)
+        oauth = OAuthServerService()
+        app.include_router(build_marketplace_router(registry, installer, oauth))
+
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("SaaS Platform experiences routing skipped: %s", e)

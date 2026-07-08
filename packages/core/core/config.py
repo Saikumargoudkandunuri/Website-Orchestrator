@@ -120,6 +120,9 @@ class Settings(BaseSettings):
     #: injects an IntelligenceContainer.
     intelligence_engine_enabled: bool = False
 
+    #: Whether the production API factory auto-mounts Milestone 5 Brain routes.
+    brain_engine_enabled: bool = False
+
     #: HS256 secret used by the Growth API JWT authenticator when Growth is
     #: enabled in production. Optional because Growth itself is opt-in.
     growth_auth_jwt_secret: SecretStr | None = None
