@@ -1,0 +1,39 @@
+# Python build / cache artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+
+# Test / tooling caches
+.pytest_cache/
+.hypothesis/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# IDE folders
+.vs/
+.vscode/
+
+# uv
+# (lockfile uv.lock IS committed intentionally)
+
+# Secrets / credentials — never commit (Req 14.3).
+# The tracked template `.env.example` is explicitly re-included below.
+.env
+.env.*
+*.env
+!.env.example
+# Other common credential-bearing files
+*.pem
+*.key
+secrets.*
+credentials.*
+*.credentials

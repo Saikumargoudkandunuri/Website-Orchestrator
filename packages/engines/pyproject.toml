@@ -1,0 +1,24 @@
+# Engines — Milestone 3 enterprise SEO intelligence engines.
+# Additive; depends on wo-core, wo-intelligence. Never modifies M1/M2.
+[project]
+name = "wo-engines"
+version = "0.1.0"
+description = "Engines: ten independently-structured SEO intelligence engines (Technical SEO, Site Architecture, Keyword, Content, Competitor, Backlink, Topical Authority, SEO Scoring, Opportunity, Recommendation)."
+requires-python = ">=3.11"
+dependencies = [
+    "wo-core",
+    "wo-intelligence",
+    "sqlalchemy",
+    "httpx",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["engines"]
+
+[tool.uv.sources]
+wo-core = { workspace = true }
+wo-intelligence = { workspace = true }

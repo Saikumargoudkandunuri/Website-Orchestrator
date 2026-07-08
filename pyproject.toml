@@ -1,0 +1,74 @@
+# Root workspace for the Website Orchestrator (Milestone 0 — "Prove the loop").
+#
+# This is a uv workspace. The root is a *virtual* project (`package = false`):
+# it is never built or installed itself, it only aggregates the workspace
+# members under `packages/*` and `apps/*` and holds the shared dev tooling and
+# test configuration.
+#
+# Dependency direction (Requirement 15): all dependencies point inward toward
+# `packages/core` (Core_Package). The leaf subsystems (crawler, digital_twin,
+# check_engine, fix_generator, publishing_adapter, governance) depend ONLY on
+# `wo-core`; cross-subsystem calls go through the Protocols published in
+# Core_Package via dependency injection. `wo-api` is the composition root and is
+# the only package permitted to depend on the concrete subsystem packages.
+[project]
+name = "website-orchestrator"
+version = "0.1.0"
+description = "Self-hosted, zero-budget, AI-assisted website operations platform (Milestone 0)."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "wo-core",
+    "wo-crawler",
+    "wo-digital-twin",
+    "wo-check-engine",
+    "wo-fix-generator",
+    "wo-ai-generator",
+    "wo-intelligence",
+    "wo-engines",
+    "wo-growth",
+    "wo-publishing-adapter",
+    "wo-governance",
+    "wo-api",
+    "wo-e2e",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "hypothesis>=6",
+]
+
+[tool.uv]
+# The workspace root is not itself an installable package.
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*", "apps/*"]
+
+[tool.uv.sources]
+wo-core = { workspace = true }
+wo-crawler = { workspace = true }
+wo-digital-twin = { workspace = true }
+wo-check-engine = { workspace = true }
+wo-fix-generator = { workspace = true }
+wo-ai-generator = { workspace = true }
+wo-intelligence = { workspace = true }
+wo-engines = { workspace = true }
+wo-growth = { workspace = true }
+wo-publishing-adapter = { workspace = true }
+wo-governance = { workspace = true }
+wo-api = { workspace = true }
+wo-e2e = { workspace = true }
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["packages", "apps"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-ra --strict-markers --import-mode=importlib"
+markers = [
+    "property: property-based (Hypothesis) test derived from a design correctness property",
+    "e2e: end-to-end proof of the loop against local fixtures",
+]

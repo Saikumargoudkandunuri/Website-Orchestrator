@@ -1,0 +1,44 @@
+# Docker Compose for the Website Orchestrator (Milestone 0 — "Prove the loop").
+#
+# Provides the PostgreSQL Datastore that persists all relational data (pages,
+# links, metadata, issues, suggested fixes, audit trail). PostgreSQL is used
+# from day one (Req 10.8, 14, 11.1) rather than SQLite. The SAME service backs
+# both the application and the automated test suite; a local/containerized
+# PostgreSQL instance is NOT treated as an external-network dependency (Req 11.1).
+#
+# Usage:
+#   docker compose up -d db          # start PostgreSQL in the background
+#   docker compose ps                # check health
+#   docker compose down              # stop (keeps the named volume)
+#   docker compose down -v           # stop and DELETE the data volume
+#
+# Connection settings are driven by the same variables documented in .env.example
+# so the container and the app agree on credentials. Defaults are provided for a
+# zero-config local developer experience; override them via .env for anything
+# beyond local development.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: wo_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-orchestrator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orchestrator}
+      POSTGRES_DB: ${POSTGRES_DB:-orchestrator}
+    ports:
+      # host:container — exposed on localhost only so nothing leaves the machine.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Gate dependents on real readiness rather than "container started".
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-orchestrator} -d ${POSTGRES_DB:-orchestrator}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  pgdata:
+    driver: local

@@ -1,0 +1,44 @@
+# API_Surface — the FastAPI application and the composition root.
+#
+# The API is the one place that wires concrete subsystem implementations
+# together, so it is the only package permitted to depend on the subsystem
+# packages in addition to Core_Package. Dependencies still point inward: the API
+# imports the subsystems, never the reverse.
+[project]
+name = "wo-api"
+version = "0.1.0"
+description = "API_Surface: FastAPI application exposing the crawl/review/approval/rollback loop over HTTP."
+requires-python = ">=3.11"
+dependencies = [
+    "wo-core",
+    "wo-crawler",
+    "wo-digital-twin",
+    "wo-check-engine",
+    "wo-fix-generator",
+    "wo-ai-generator",
+    "wo-intelligence",
+    "wo-engines",
+    "wo-publishing-adapter",
+    "wo-governance",
+    "fastapi",
+    "uvicorn[standard]",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["api"]
+
+[tool.uv.sources]
+wo-core = { workspace = true }
+wo-crawler = { workspace = true }
+wo-digital-twin = { workspace = true }
+wo-check-engine = { workspace = true }
+wo-fix-generator = { workspace = true }
+wo-ai-generator = { workspace = true }
+wo-intelligence = { workspace = true }
+wo-engines = { workspace = true }
+wo-publishing-adapter = { workspace = true }
+wo-governance = { workspace = true }

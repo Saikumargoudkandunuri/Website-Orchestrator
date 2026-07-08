@@ -1,0 +1,23 @@
+# Governance_Layer — approval, rollback, and audit workflow. Depends only on Core_Package.
+#
+# Governance calls the Digital_Twin and Publishing_Adapter, but only through the
+# Protocols published in Core_Package (injected at composition time), so its
+# package-level dependency is Core_Package alone.
+[project]
+name = "wo-governance"
+version = "0.1.0"
+description = "Governance_Layer: the sole path for SuggestedFix status transitions — approval, rejection, application, rollback, and audit."
+requires-python = ">=3.11"
+dependencies = [
+    "wo-core",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["governance"]
+
+[tool.uv.sources]
+wo-core = { workspace = true }
