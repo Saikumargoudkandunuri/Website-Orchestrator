@@ -49,7 +49,27 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["packages/*", "apps/*"]
+members = [
+    "packages/core",
+    "packages/crawler",
+    "packages/digital_twin",
+    "packages/check_engine",
+    "packages/fix_generator",
+    "packages/publishing_adapter",
+    "packages/governance",
+    "packages/api",
+    "packages/ai_generator",
+    "packages/intelligence",
+    "packages/engines",
+    "packages/growth",
+    "packages/brain",
+    "packages/observability",
+    "packages/agentic",
+    "packages/enterprise_intelligence",
+    "packages/saas",
+    "apps/api",
+    "apps/e2e"
+]
 
 [tool.uv.sources]
 wo-core = { workspace = true }
