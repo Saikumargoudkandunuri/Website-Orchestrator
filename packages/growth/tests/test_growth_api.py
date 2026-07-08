@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -11,6 +13,7 @@ from check_engine import CheckEngine
 from crawler import Crawler
 from fix_generator import FixGenerator
 from growth.api import build_growth_container
+from growth.auth import create_hs256_jwt
 from growth.db import create_growth_tables
 
 
@@ -39,7 +42,7 @@ class DummyGovernance:
         raise AssertionError("not used by growth tests")
 
 
-def _client() -> TestClient:
+def _client(*, authenticated: bool = True) -> TestClient:
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -56,7 +59,76 @@ def _client() -> TestClient:
         governance=DummyGovernance(),
         tenant_id="tenant-test",
     )
-    return TestClient(create_app(subsystems=subsystems, growth=growth))
+    client = TestClient(create_app(subsystems=subsystems, growth=growth))
+    if authenticated:
+        client.headers.update({"x-api-key": "test-api-key"})
+    return client
+
+
+def test_growth_requires_authentication_for_all_routes() -> None:
+    client = _client(authenticated=False)
+
+    response = client.get("/growth/health")
+
+    assert response.status_code == 401
+
+
+def test_growth_rejects_invalid_credentials() -> None:
+    client = _client(authenticated=False)
+
+    response = client.get("/growth/health", headers={"x-api-key": "bad-key"})
+
+    assert response.status_code == 401
+
+
+def test_growth_rejects_expired_jwt() -> None:
+    client = _client(authenticated=False)
+    token = create_hs256_jwt(
+        {
+            "sub": "jwt-user",
+            "tenant_id": "tenant-test",
+            "roles": ["owner"],
+            "exp": int(time.time()) - 10,
+        },
+        "test-growth-jwt-secret",
+    )
+
+    response = client.get("/growth/health", headers={"authorization": f"Bearer {token}"})
+
+    assert response.status_code == 401
+
+
+def test_growth_accepts_jwt_api_key_and_service_account_credentials() -> None:
+    client = _client(authenticated=False)
+    token = create_hs256_jwt(
+        {
+            "sub": "jwt-user",
+            "tenant_id": "tenant-test",
+            "roles": ["owner"],
+            "exp": int(time.time()) + 60,
+        },
+        "test-growth-jwt-secret",
+    )
+
+    jwt_response = client.get(
+        "/growth/health",
+        headers={"authorization": f"Bearer {token}"},
+    )
+    api_key_response = client.get(
+        "/growth/health",
+        headers={"x-api-key": "test-api-key"},
+    )
+    service_response = client.get(
+        "/growth/health",
+        headers={
+            "x-service-account": "scheduler",
+            "x-service-token": "service-token",
+        },
+    )
+
+    assert jwt_response.status_code == 200
+    assert api_key_response.status_code == 200
+    assert service_response.status_code == 200
 
 
 def test_growth_local_seo_report_is_mounted_persisted_and_readable() -> None:

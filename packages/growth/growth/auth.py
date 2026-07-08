@@ -7,7 +7,7 @@ import hmac
 import json
 import time
 from dataclasses import dataclass, field
-from typing import Protocol, runtime_checkable
+from typing import Callable, Protocol, runtime_checkable
 
 from fastapi import Request
 
@@ -52,7 +52,7 @@ class ConfiguredAuthProvider:
         jwt_secret: str | None = None,
         api_keys: dict[str, GrowthIdentity] | None = None,
         service_accounts: dict[str, tuple[str, GrowthIdentity]] | None = None,
-        now: callable | None = None,
+        now: Callable[[], float] | None = None,
     ) -> None:
         self._jwt_secret = jwt_secret
         self._api_keys = api_keys or {}
