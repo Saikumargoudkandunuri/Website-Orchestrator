@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from growth.api.wiring import GrowthContainer
@@ -128,6 +128,26 @@ def _container(request: Request) -> GrowthContainer:
     return container
 
 
+def get_growth_identity(request: Request) -> GrowthIdentity:
+    c = _container(request)
+    try:
+        identity = c.auth_provider.authenticate(request)
+    except GrowthAuthenticationError as exc:
+        raise HTTPException(
+            status_code=401,
+            detail=str(exc),
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+    if identity.tenant_id != c.tenant_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Credential tenant does not match this Growth container.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    request.state.growth_identity = identity
+    return identity
+
+
 def _unwrap(result: Any) -> Any:
     if getattr(result, "is_ok", False):
         return result.unwrap()
@@ -137,7 +157,11 @@ def _unwrap(result: Any) -> Any:
 
 
 def build_growth_router() -> APIRouter:
-    router = APIRouter(prefix="/growth", tags=["growth"])
+    router = APIRouter(
+        prefix="/growth",
+        tags=["growth"],
+        dependencies=[Depends(get_growth_identity)],
+    )
 
     @router.get("/health")
     def growth_health(request: Request) -> dict[str, Any]:
@@ -436,3 +460,5 @@ def build_growth_router() -> APIRouter:
         return _unwrap(c.automation.get_execution_logs(site_id, tenant_id=c.tenant_id))
 
     return router
+from growth.auth import GrowthIdentity
+from growth.errors import GrowthAuthenticationError

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from growth.agency_management.repositories import AgencyManagementRepository
 from growth.agency_management.services import AgencyManagementService
-from growth.auth import AuthProvider, ConfiguredAuthProvider
+from growth.auth import AuthProvider, ConfiguredAuthProvider, GrowthIdentity
 from growth.analytics_intelligence.repositories import AnalyticsRepository
 from growth.analytics_intelligence.services import AnalyticsService
 from growth.automation.repositories import AutomationRepository
@@ -148,11 +148,62 @@ def build_default_growth() -> GrowthContainer:
         jwt_secret=settings.growth_auth_jwt_secret.get_secret_value()
         if settings.growth_auth_jwt_secret is not None
         else None,
-        api_keys=settings.growth_api_key_identities(),
-        service_accounts=settings.growth_service_account_identities(),
+        api_keys=_parse_api_key_identities(settings.growth_auth_api_keys),
+        service_accounts=_parse_service_account_identities(
+            settings.growth_auth_service_accounts
+        ),
     )
     return build_growth_container(
         session_factory,
         settings.tenant_id,
         auth_provider=auth_provider,
     )
+
+
+def _parse_api_key_identities(raw: str) -> dict[str, GrowthIdentity]:
+    identities: dict[str, GrowthIdentity] = {}
+    for entry in _split_auth_entries(raw):
+        try:
+            key, tenant_id, principal_id, roles = entry.split(":", 3)
+        except ValueError:
+            continue
+        identities[key] = GrowthIdentity(
+            tenant_id=tenant_id,
+            principal_id=principal_id,
+            credential_type="api_key",
+            roles=tuple(_split_csv(roles)),
+            permissions=(),
+            api_key_id=key,
+        )
+    return identities
+
+
+def _parse_service_account_identities(
+    raw: str,
+) -> dict[str, tuple[str, GrowthIdentity]]:
+    identities: dict[str, tuple[str, GrowthIdentity]] = {}
+    for entry in _split_auth_entries(raw):
+        try:
+            account_id, token, tenant_id, roles = entry.split(":", 3)
+        except ValueError:
+            continue
+        identities[account_id] = (
+            token,
+            GrowthIdentity(
+                tenant_id=tenant_id,
+                principal_id=account_id,
+                credential_type="service_account",
+                roles=tuple(_split_csv(roles)),
+                permissions=(),
+                service_account_id=account_id,
+            ),
+        )
+    return identities
+
+
+def _split_auth_entries(raw: str) -> list[str]:
+    return [entry.strip() for entry in raw.split(";") if entry.strip()]
+
+
+def _split_csv(raw: str) -> list[str]:
+    return [item.strip() for item in raw.split(",") if item.strip()]
