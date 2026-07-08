@@ -132,6 +132,16 @@ class Settings(BaseSettings):
     #: ``account_id:token:tenant_id:role1,role2``.
     growth_auth_service_accounts: str = ""
 
+    #: Maximum retry attempts for a failed background job before it is moved to
+    #: the dead-letter queue (§2.3 production scheduler).
+    growth_job_max_retries: int = 3
+
+    #: Base delay in seconds for the first retry backoff (§2.3 production scheduler).
+    growth_job_retry_base_delay_s: float = 1.0
+
+    #: Cap on the retry backoff delay in seconds (§2.3 production scheduler).
+    growth_job_retry_max_delay_s: float = 60.0
+
 
 def load_settings(**overrides: object) -> Settings:
     """Load and validate :class:`Settings`, failing fast on missing requirements.

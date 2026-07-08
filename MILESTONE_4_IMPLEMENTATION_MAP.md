@@ -664,3 +664,159 @@ prompt are real in the current tree: Growth endpoints are open, roles are data
 only, the scheduler is fake/in-process only, observability is core-level but not
 threaded through Growth, rate limiting is absent, health is shallow, and the
 provider framework needs production hardening.
+
+## 2026-07-08 Production Hardening Session — Phase 1 Re-Verification
+
+This section re-verifies the starting state before new hardening code is added.
+All findings are from live commands run against the current working tree, which
+includes in-progress auth/permissions changes not yet committed.
+
+### Baseline Commands
+
+Dependency sync:
+
+```text
+Resolved 63 packages in 7ms
+Checked 61 packages in 14ms
+```
+
+Plain production app boot and optional-router isolation:
+
+```text
+DEFAULT_INTELLIGENCE_PATHS 0
+DEFAULT_GROWTH_PATHS 0
+```
+
+Compile:
+
+```text
+uv run python -m compileall -q packages apps — passed (zero errors)
+```
+
+Full suite:
+
+```text
+625 passed, 4 warnings in 134.28s
+```
+
+(5 more tests than the prior session's 620 — from in-progress auth/permission
+changes.)
+
+Growth API tests:
+
+```text
+10 passed, 1 warning in 4.38s
+```
+
+### Growth OpenAPI Route Inventory
+
+Growth router path count: **39** (enumerated directly from
+`build_growth_router().routes`). Routes include all 37 previously documented
+plus two additional paths from deduplicated organization team/client list
+endpoints:
+
+- `/growth/agency/notifications` / `/{recipient_id}`
+- `/growth/agency/organizations` / `/{organization_id}` / `/{id}/clients` (×2)
+  / `/{id}/teams` (×2)
+- `/growth/agency/tasks` / `/{task_id}/status`
+- `/growth/agency/workspaces`
+- `/growth/analytics/sites/{site_id}/analyze`
+- `/growth/automation/events` / `rules` / `rules/{rule_id}`
+  / `sites/{site_id}/execution-log` / `sites/{site_id}/rules`
+- `/growth/content-generation/generate` / `sites/{site_id}/assets`
+  / `assets/{asset_id}` + submit/approve/publish/reject/verify
+- `/growth/content-optimization/pages/{page_id}/analyze` / `reports/latest`
+- `/growth/health`
+- `/growth/local-seo/sites/{site_id}/analyze` / `reports/latest`
+- `/growth/outreach/sites/{site_id}/analyze`
+- `/growth/rank-tracking/sites/{site_id}/capture` / `keywords`
+  / `report` / `schedule`
+- `/growth/reporting/sites/{site_id}/generate` / `artifacts/{artifact_id}`
+- `/growth/reputation/sites/{site_id}/analyze` / `reports/latest`
+
+### Authentication and Authorization — Current State
+
+**Already implemented (§2.1 complete, §2.2 complete):**
+
+- `growth/auth.py`: `GrowthIdentity` dataclass, `AuthProvider` Protocol,
+  `ConfiguredAuthProvider` concrete implementation with JWT HS256 validation,
+  API key validation (`x-api-key`), service-account validation
+  (`x-service-account` + `x-service-token`), and `create_hs256_jwt()` helper.
+- `growth/errors.py`: `GrowthAuthenticationError` and `GrowthPermissionError`
+  defined.
+- `growth/api/wiring.py`: `GrowthContainer.auth_provider: AuthProvider` field;
+  `build_growth_container()` wires `ConfiguredAuthProvider.for_test_tenant()` by
+  default; `build_default_growth()` reads JWT secret/API keys/service accounts
+  from `core.config.Settings`.
+- `growth/api/routes_growth.py`: `require_growth_access` dependency (authenticates
+  + permission-checks), applied as `dependencies=[Depends(require_growth_access)]`
+  on the router — covers **all** Growth routes.
+- `growth/permissions.py`: `RoleName` enum (7 roles), `PermissionAction` enum
+  (read/write/approve/publish/admin), `PermissionScope` enum
+  (organization/client/workspace), `_ROLE_MATRIX` mapping, `has_permission()`.
+- `growth/agency_management/models.py`: `RoleName`, `PermissionAction`,
+  `PermissionScope` enums added; `Role.role_name` widened to accept enum.
+- Tests: 4 auth tests (unauthenticated→401, invalid key→401, expired JWT→401,
+  all 3 credential types succeed) + 1 permission test covering read/write/
+  approve/publish at 3 scopes.
+
+### Scheduler and Queue — Current State
+
+- `growth/shared/jobs/job_queue_interface.py`: `JobQueue` Protocol with
+  `enqueue`, `schedule`, `cancel`, `status`; `JobDefinition`, `JobResult`
+  dataclasses; `JobStatus` enum (pending/running/completed/failed/scheduled/
+  cancelled).
+- `growth/shared/jobs/fake_job_queue.py`: `FakeJobQueue` — synchronous
+  in-process test double. The only implementation wired into `GrowthContainer`.
+- `growth/shared/jobs/scheduled_job_registry.py`: `ScheduledJobRegistry` with
+  `register()`, `schedule_all()`; `default_scheduled_jobs()` registers rank
+  capture, analytics snapshot, and report generation cron expressions.
+- No production queue library (Celery, RQ, APScheduler, ARQ, etc.) exists in
+  dependencies.
+- No retry policy, backoff, dead-letter queue, persisted job history, worker
+  lifecycle, or failure recovery implemented.
+
+### Observability — Current State
+
+- `core/logging.py`: full structured JSON logging via `structlog` — trace ID
+  generation/binding, `operation_trace()` context manager, credential
+  redaction, ISO-8601 timestamps. Property-tested.
+- Growth services/routes do **not** emit structured logs. No Growth-specific
+  metrics, OpenTelemetry hooks, counters, or histograms.
+- No correlation/request ID threading from API boundary to background jobs.
+
+### Rate Limiting — Current State
+
+- `core/config.py` has `rate_limit_ms: int` setting, but no enforcement.
+- No rate-limiter interface, middleware, token-bucket, or 429 response logic
+  anywhere in the codebase.
+
+### Health Endpoint — Current State
+
+- `/growth/health` returns `{status, tenant_id, services: {name: bool}}` for all
+  10 Growth service areas.
+- Does not report DB connectivity, queue/scheduler, worker liveness, storage,
+  external providers, version, uptime, or memory/CPU.
+- No readiness/liveness distinction.
+
+### Provider Framework — Current State
+
+Five provider interfaces exist under `growth/shared/provider_abstraction/`:
+- `analytics_data_provider_interface.py`
+- `local_seo_data_provider_interface.py`
+- `outreach_data_provider_interface.py`
+- `rank_tracking_provider_interface.py`
+- `reputation_data_provider_interface.py`
+
+`fake_providers.py` has deterministic fakes for those five. No unified
+provider health/capability/cache/circuit-breaker framework. No interfaces for
+Google Analytics, Google Search Console, Google Business Profile, SERP APIs,
+review providers, citation providers, outreach providers, email providers,
+webhook providers.
+
+### Phase 1 Conclusion
+
+The starting baseline is verified: 625 passing tests, clean compile, boot
+isolation holds. §§2.1 (Authentication) and 2.2 (Agency Permissions) are already
+implemented and tested. The remaining eight items (§2.3–§2.10) are the live
+work for this session.

@@ -17,6 +17,9 @@ from growth.agency_management.models import (
     Workspace,
 )
 from growth.content_generation.models import ContentGenerationRequest
+from growth.auth import GrowthIdentity
+from growth.errors import GrowthAuthenticationError
+from growth.permissions import PermissionAction, PermissionScope, has_permission
 from growth.rank_tracking.models import TrackedKeyword
 from growth.reporting.models import BrandingConfig, ReportDefinition, ReportFormat, ReportType
 from growth.shared.automation.automation_rule_engine import AutomationRule
@@ -128,7 +131,7 @@ def _container(request: Request) -> GrowthContainer:
     return container
 
 
-def get_growth_identity(request: Request) -> GrowthIdentity:
+def require_growth_access(request: Request) -> GrowthIdentity:
     c = _container(request)
     try:
         identity = c.auth_provider.authenticate(request)
@@ -145,7 +148,46 @@ def get_growth_identity(request: Request) -> GrowthIdentity:
             headers={"WWW-Authenticate": "Bearer"},
         )
     request.state.growth_identity = identity
+    action, scope = _required_permission(request)
+    if not has_permission(identity, action, scope):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Growth role lacks {action.value} permission for {scope.value} scope.",
+        )
     return identity
+
+
+def _required_permission(request: Request) -> tuple[PermissionAction, PermissionScope]:
+    path = request.url.path
+    method = request.method.upper()
+    if path.endswith("/approve"):
+        action = PermissionAction.APPROVE
+    elif path.endswith("/publish"):
+        action = PermissionAction.PUBLISH
+    elif method == "DELETE" or _is_admin_path(path, method):
+        action = PermissionAction.ADMIN
+    elif method in {"GET", "HEAD", "OPTIONS"}:
+        action = PermissionAction.READ
+    else:
+        action = PermissionAction.WRITE
+    return action, _permission_scope(path)
+
+
+def _is_admin_path(path: str, method: str) -> bool:
+    return (
+        path == "/growth/automation/rules"
+        or (path.startswith("/growth/agency/organizations") and method == "POST")
+    )
+
+
+def _permission_scope(path: str) -> PermissionScope:
+    if path.startswith("/growth/agency/workspaces"):
+        return PermissionScope.WORKSPACE
+    if path.startswith("/growth/agency/organizations") and "/clients" not in path:
+        return PermissionScope.ORGANIZATION
+    if path.startswith("/growth/content-generation"):
+        return PermissionScope.WORKSPACE
+    return PermissionScope.CLIENT
 
 
 def _unwrap(result: Any) -> Any:
@@ -160,7 +202,7 @@ def build_growth_router() -> APIRouter:
     router = APIRouter(
         prefix="/growth",
         tags=["growth"],
-        dependencies=[Depends(get_growth_identity)],
+        dependencies=[Depends(require_growth_access)],
     )
 
     @router.get("/health")
@@ -460,5 +502,3 @@ def build_growth_router() -> APIRouter:
         return _unwrap(c.automation.get_execution_logs(site_id, tenant_id=c.tenant_id))
 
     return router
-from growth.auth import GrowthIdentity
-from growth.errors import GrowthAuthenticationError

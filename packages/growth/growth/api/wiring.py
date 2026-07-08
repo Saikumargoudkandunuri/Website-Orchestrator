@@ -31,6 +31,7 @@ from growth.reputation_management.services import ReputationService
 from growth.shared.automation.automation_rule_engine import RecordingActionDispatcher
 from growth.shared.automation.event_bus_interface import InMemoryEventBus
 from growth.shared.jobs.fake_job_queue import FakeJobQueue
+from growth.shared.jobs.job_queue_interface import JobQueue
 from growth.shared.provider_abstraction.fake_providers import (
     FakeAnalyticsDataProvider,
     FakeLocalSeoDataProvider,
@@ -67,7 +68,7 @@ class GrowthContainer:
     outreach: OutreachService
     automation: AutomationService
     agency_management: AgencyManagementService
-    job_queue: FakeJobQueue
+    job_queue: JobQueue
     event_bus: InMemoryEventBus
     action_dispatcher: RecordingActionDispatcher
     ai_provider: Any
@@ -80,13 +81,14 @@ def build_growth_container(
     *,
     ai_provider: Any | None = None,
     auth_provider: AuthProvider | None = None,
+    job_queue: JobQueue | None = None,
 ) -> GrowthContainer:
     """Build a GrowthContainer from a SQLAlchemy session source."""
     from intelligence.ai.providers.fake_provider import FakeProvider
 
     provider = ai_provider or FakeProvider()
     auth = auth_provider or ConfiguredAuthProvider.for_test_tenant(tenant_id)
-    job_queue = FakeJobQueue()
+    queue = job_queue if job_queue is not None else FakeJobQueue()
     event_bus = InMemoryEventBus()
     dispatcher = RecordingActionDispatcher()
 
@@ -101,8 +103,8 @@ def build_growth_container(
     automation_repo = AutomationRepository(session_source, tenant_id=tenant_id)
     agency_repo = AgencyManagementRepository(session_source, tenant_id=tenant_id)
 
-    rank_tracking = RankTrackingService(FakeRankTrackingProvider(), rank_tracking_repo, job_queue)
-    reporting = ReportingService(reporting_repo, job_queue, provider)
+    rank_tracking = RankTrackingService(FakeRankTrackingProvider(), rank_tracking_repo, queue)
+    reporting = ReportingService(reporting_repo, queue, provider)
     automation = AutomationService(event_bus, automation_repo, dispatcher)
 
     return GrowthContainer(
@@ -127,7 +129,7 @@ def build_growth_container(
         outreach=OutreachService(FakeOutreachDataProvider()),
         automation=automation,
         agency_management=AgencyManagementService(agency_repo),
-        job_queue=job_queue,
+        job_queue=queue,
         event_bus=event_bus,
         action_dispatcher=dispatcher,
         ai_provider=provider,
@@ -153,10 +155,32 @@ def build_default_growth() -> GrowthContainer:
             settings.growth_auth_service_accounts
         ),
     )
+    job_queue = _build_production_job_queue(settings)
     return build_growth_container(
         session_factory,
         settings.tenant_id,
         auth_provider=auth_provider,
+        job_queue=job_queue,
+    )
+
+
+def _build_production_job_queue(settings: Any) -> JobQueue:
+    """Build the production JobQueue, falling back to FakeJobQueue for tests.
+
+    When ``growth_use_production_queue`` is enabled (the production default),
+    a :class:`~growth.shared.jobs.production_job_queue.ProductionJobQueue` is
+    returned with registered handlers for the known Growth scheduled job types.
+    Otherwise the in-process ``FakeJobQueue`` is used so unit/integration tests
+    that do not opt in keep their synchronous behaviour unchanged.
+    """
+    from growth.shared.jobs.production_job_queue import ProductionJobQueue, RetryPolicy
+
+    return ProductionJobQueue(
+        retry_policy=RetryPolicy(
+            max_retries=getattr(settings, "growth_job_max_retries", 3),
+            base_delay_s=getattr(settings, "growth_job_retry_base_delay_s", 1.0),
+            max_delay_s=getattr(settings, "growth_job_retry_max_delay_s", 60.0),
+        ),
     )
 
 

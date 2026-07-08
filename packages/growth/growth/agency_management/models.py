@@ -2,6 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from typing import Any
 
 __all__ = [
@@ -12,7 +13,34 @@ __all__ = [
     "Workspace",
     "Task",
     "Notification",
+    "RoleName",
+    "PermissionAction",
+    "PermissionScope",
 ]
+
+
+class RoleName(str, Enum):
+    OWNER = "owner"
+    ADMIN = "admin"
+    MANAGER = "manager"
+    SEO_SPECIALIST = "seo_specialist"
+    CONTENT_WRITER = "content_writer"
+    CLIENT = "client"
+    READ_ONLY = "read_only"
+
+
+class PermissionAction(str, Enum):
+    READ = "read"
+    WRITE = "write"
+    APPROVE = "approve"
+    PUBLISH = "publish"
+    ADMIN = "admin"
+
+
+class PermissionScope(str, Enum):
+    ORGANIZATION = "organization"
+    CLIENT = "client"
+    WORKSPACE = "workspace"
 
 
 @dataclass(frozen=True)
@@ -46,7 +74,7 @@ class Team:
 @dataclass(frozen=True)
 class Role:
     """Role with permissions (§4.7). Roles: owner, admin, editor, viewer, client_readonly."""
-    role_name: str
+    role_name: RoleName | str
     permissions: list[str] = field(default_factory=list)
 
 

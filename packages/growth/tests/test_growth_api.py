@@ -65,6 +65,19 @@ def _client(*, authenticated: bool = True) -> TestClient:
     return client
 
 
+def _jwt_headers(role: str) -> dict[str, str]:
+    token = create_hs256_jwt(
+        {
+            "sub": f"{role}-user",
+            "tenant_id": "tenant-test",
+            "roles": [role],
+            "exp": int(time.time()) + 60,
+        },
+        "test-growth-jwt-secret",
+    )
+    return {"authorization": f"Bearer {token}"}
+
+
 def test_growth_requires_authentication_for_all_routes() -> None:
     client = _client(authenticated=False)
 
@@ -129,6 +142,103 @@ def test_growth_accepts_jwt_api_key_and_service_account_credentials() -> None:
     assert jwt_response.status_code == 200
     assert api_key_response.status_code == 200
     assert service_response.status_code == 200
+
+
+def test_growth_permissions_cover_admin_write_approve_publish_and_scopes() -> None:
+    client = _client(authenticated=False)
+
+    org_denied = client.post(
+        "/growth/agency/organizations",
+        headers=_jwt_headers("read_only"),
+        json={"organization_id": "org-perm", "name": "Denied Org"},
+    )
+    org_allowed = client.post(
+        "/growth/agency/organizations",
+        headers=_jwt_headers("owner"),
+        json={"organization_id": "org-perm", "name": "Allowed Org"},
+    )
+
+    client_write_denied = client.post(
+        "/growth/rank-tracking/sites/site-perm/keywords",
+        headers=_jwt_headers("client"),
+        json={"keyword": "permission seo", "page_id": "page-a"},
+    )
+    client_write_allowed = client.post(
+        "/growth/rank-tracking/sites/site-perm/keywords",
+        headers=_jwt_headers("content_writer"),
+        json={"keyword": "permission seo", "page_id": "page-a"},
+    )
+
+    workspace_denied = client.post(
+        "/growth/agency/workspaces",
+        headers=_jwt_headers("read_only"),
+        json={
+            "workspace_id": "workspace-denied",
+            "organization_id": "org-perm",
+            "user_id": "user-a",
+            "name": "Denied workspace",
+        },
+    )
+    workspace_allowed = client.post(
+        "/growth/agency/workspaces",
+        headers=_jwt_headers("content_writer"),
+        json={
+            "workspace_id": "workspace-allowed",
+            "organization_id": "org-perm",
+            "user_id": "user-a",
+            "name": "Allowed workspace",
+        },
+    )
+
+    generated = client.post(
+        "/growth/content-generation/generate",
+        headers=_jwt_headers("content_writer"),
+        json={
+            "site_id": "site-perm",
+            "page_id": "page-a",
+            "topic": "Permission testing",
+            "target_keyword": "permission seo",
+        },
+    )
+    assert generated.status_code == 200
+    asset_id = generated.json()["id"]
+    submitted = client.post(
+        f"/growth/content-generation/assets/{asset_id}/submit",
+        headers=_jwt_headers("content_writer"),
+        json={"actor": "writer"},
+    )
+    approve_denied = client.post(
+        f"/growth/content-generation/assets/{asset_id}/approve",
+        headers=_jwt_headers("content_writer"),
+        json={"actor": "writer"},
+    )
+    approve_allowed = client.post(
+        f"/growth/content-generation/assets/{asset_id}/approve",
+        headers=_jwt_headers("manager"),
+        json={"actor": "manager"},
+    )
+    publish_denied = client.post(
+        f"/growth/content-generation/assets/{asset_id}/publish",
+        headers=_jwt_headers("manager"),
+        json={"actor": "manager"},
+    )
+    publish_allowed = client.post(
+        f"/growth/content-generation/assets/{asset_id}/publish",
+        headers=_jwt_headers("admin"),
+        json={"actor": "admin"},
+    )
+
+    assert org_denied.status_code == 403
+    assert org_allowed.status_code == 200
+    assert client_write_denied.status_code == 403
+    assert client_write_allowed.status_code == 200
+    assert workspace_denied.status_code == 403
+    assert workspace_allowed.status_code == 200
+    assert submitted.status_code == 200
+    assert approve_denied.status_code == 403
+    assert approve_allowed.status_code == 200
+    assert publish_denied.status_code == 403
+    assert publish_allowed.status_code == 200
 
 
 def test_growth_local_seo_report_is_mounted_persisted_and_readable() -> None:
