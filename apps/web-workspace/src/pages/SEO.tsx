@@ -47,7 +47,8 @@ export default function SEOPage() {
   });
 
   const filteredIssues = issues.filter(issue => {
-    const matchesSearch = issue.url.toLowerCase().includes(search.toLowerCase()) || issue.description.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = (issue.url || (issue as any).detail?.page_url || "").toLowerCase().includes(search.toLowerCase()) || 
+                          (issue.description || "").toLowerCase().includes(search.toLowerCase());
     const matchesSeverity = selectedSeverity === 'all' || issue.severity === selectedSeverity;
     return matchesSearch && matchesSeverity;
   });
@@ -220,8 +221,8 @@ export default function SEOPage() {
                       </td>
                       <td className="text-slate-900 font-black">{issue.category}</td>
                       <td className="mono text-xs max-w-sm truncate text-indigo-600 font-bold">
-                        <a href={issue.url} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
-                          {issue.url} <ArrowUpRight className="h-3.5 w-3.5" />
+                        <a href={issue.url || (issue as any).detail?.page_url} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
+                          {issue.url || (issue as any).detail?.page_url || "General Target"} <ArrowUpRight className="h-3.5 w-3.5" />
                         </a>
                       </td>
                       <td className="text-slate-600 font-semibold">{issue.description}</td>
