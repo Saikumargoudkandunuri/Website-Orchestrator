@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { collabApi } from '../api';
-import { MessageSquare, CheckSquare, Bell, ArrowRight, Plus, Send, RefreshCw } from 'lucide-react';
+import { MessageSquare, Bell, Plus, Send } from 'lucide-react';
+import { GlassCard, AnimatedButton, GlassInput, StatusBadge } from '../components/PremiumUI';
+import { motion } from 'framer-motion';
 
 export default function CollaborationPage() {
   const queryClient = useQueryClient();
@@ -23,7 +25,6 @@ export default function CollaborationPage() {
     queryFn: collabApi.listNotifications,
   });
 
-  // Since we require target node ID for listThreads, let's use a dummy node for standard discussion target
   const targetNodeId = 'demo-seo-node';
   const { data: threads = [], isLoading: loadingThreads } = useQuery<any[]>({
     queryKey: ['threads', targetNodeId],
@@ -79,134 +80,135 @@ export default function CollaborationPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="space-y-8"
+    >
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-50 tracking-tight">Collaboration Center</h1>
-          <p className="text-sm text-slate-400">Team threads, decision logs history, and system change notifications</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Collaboration Center</h1>
+          <p className="text-sm text-slate-500 mt-1">Discuss fixes with teams, review choices log, and track alert notices</p>
         </div>
       </div>
 
       <div className="tabs">
-        <button className={`tab${activeTab === 'threads' ? ' active' : ''}`} onClick={() => setActiveTab('threads')}>Discussions Threads</button>
+        <button className={`tab${activeTab === 'threads' ? ' active' : ''}`} onClick={() => setActiveTab('threads')}>Discussion Threads</button>
         <button className={`tab${activeTab === 'decisions' ? ' active' : ''}`} onClick={() => setActiveTab('decisions')}>Decision Log</button>
         <button className={`tab${activeTab === 'notifications' ? ' active' : ''}`} onClick={() => setActiveTab('notifications')}>Notifications Feed</button>
       </div>
 
       {activeTab === 'threads' && (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Thread List Column */}
-          <div className="xl:col-span-1 bg-slate-900/40 border border-white/[0.06] rounded-xl flex flex-col max-h-[500px]">
-            <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-200">Active Threads</h2>
+          <GlassCard className="xl:col-span-1 p-0 overflow-hidden flex flex-col max-h-[500px]">
+            <div className="p-4 border-b border-slate-100 bg-white/50">
+              <h2 className="text-sm font-bold text-slate-800">Active Threads</h2>
             </div>
 
-            {/* List */}
-            <div className="divide-y divide-white/[0.04] overflow-y-auto flex-1">
+            <div className="divide-y divide-slate-100 overflow-y-auto flex-1 scrollbar-thin">
               {loadingThreads ? (
                 <div className="p-4 space-y-3">
                   <div className="skeleton h-12 w-full" />
                 </div>
               ) : threads.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 text-xs">
-                  No discussion threads created for this target.
+                <div className="text-center py-16 text-slate-400 text-xs">
+                  No discussion threads found.
                 </div>
               ) : (
                 threads.map((t) => (
                   <div
                     key={t.id}
                     onClick={() => setSelectedThreadId(t.id)}
-                    className={`p-4 hover:bg-slate-900/30 transition-colors cursor-pointer space-y-1 ${
-                      selectedThread?.id === t.id ? 'bg-slate-900/50 border-l-2 border-violet-500' : ''
+                    className={`p-4 hover:bg-slate-50/50 transition-colors cursor-pointer space-y-1.5 ${
+                      selectedThread?.id === t.id ? 'bg-slate-50 border-l-3 border-indigo-500' : ''
                     }`}
                   >
-                    <div className="text-xs font-semibold text-slate-200">{t.title}</div>
-                    <span className="text-[10px] text-slate-500 font-mono">Created by: {t.created_by}</span>
+                    <div className="text-xs font-bold text-slate-700 leading-tight">{t.title}</div>
+                    <span className="text-[10px] text-slate-400 font-mono">Created by: {t.created_by}</span>
                   </div>
                 ))
               )}
             </div>
 
-            {/* Create Thread Input Form */}
-            <form onSubmit={handleCreateThread} className="p-4 border-t border-white/[0.06] flex gap-2">
-              <input
+            <form onSubmit={handleCreateThread} className="p-4 border-t border-slate-100 bg-white/40 flex gap-2">
+              <GlassInput
                 value={threadTitle}
                 onChange={(e) => setThreadTitle(e.target.value)}
                 placeholder="Start a thread..."
-                className="flex-1 bg-slate-950 border border-white/[0.08] text-xs px-3 py-1.5 rounded-lg focus:outline-none focus:border-violet-500 text-slate-100 placeholder:text-slate-600"
               />
-              <button
+              <AnimatedButton
                 type="submit"
                 disabled={createThreadMutation.isPending}
-                className="btn btn-primary px-3 text-xs"
+                variant="primary"
+                className="px-3"
               >
                 <Plus className="h-4 w-4" />
-              </button>
+              </AnimatedButton>
             </form>
-          </div>
+          </GlassCard>
 
-          {/* Selected Thread Comments Display Panel */}
-          <div className="xl:col-span-2 bg-slate-900/40 border border-white/[0.06] rounded-xl flex flex-col min-h-[400px]">
+          {/* Comment Responses Panel */}
+          <GlassCard className="xl:col-span-2 p-0 overflow-hidden flex flex-col min-h-[400px]">
             {selectedThread ? (
               <>
-                <div className="p-4 border-b border-white/[0.06]">
-                  <h3 className="text-sm font-semibold text-slate-200">{selectedThread.title}</h3>
+                <div className="p-4 border-b border-slate-100 bg-white/50">
+                  <h3 className="text-sm font-bold text-slate-800">{selectedThread.title}</h3>
                 </div>
 
-                <div className="flex-1 p-4 space-y-4 overflow-y-auto max-h-[300px]">
+                <div className="flex-1 p-5 space-y-4 overflow-y-auto max-h-[320px] scrollbar-thin">
                   {loadingComments ? (
                     <div className="space-y-3">
                       <div className="skeleton h-8 w-1/2" />
-                      <div className="skeleton h-8 w-2/3 ml-auto" />
                     </div>
                   ) : comments.length === 0 ? (
-                    <p className="text-slate-600 text-xs text-center py-12">No comments posted yet. Write one below!</p>
+                    <p className="text-slate-400 text-xs text-center py-16">No comments posted yet. Write one below!</p>
                   ) : (
                     comments.map((c) => (
-                      <div key={c.id} className="p-3 bg-slate-950/40 border border-white/[0.02] rounded-lg max-w-[85%]">
-                        <p className="text-xs text-slate-300">{c.body}</p>
-                        <span className="text-[9px] text-slate-500 font-mono mt-1.5 block">Author: {c.author_id} · {c.created_at || 'just now'}</span>
+                      <div key={c.id} className="p-3 bg-white/70 border border-slate-200/50 rounded-2xl max-w-[85%] shadow-sm">
+                        <p className="text-xs font-semibold text-slate-700">{c.body}</p>
+                        <span className="text-[9px] text-slate-400 font-mono mt-1.5 block">Author: {c.author_id} · {c.created_at || 'just now'}</span>
                       </div>
                     ))
                   )}
                 </div>
 
-                <form onSubmit={handleAddComment} className="p-4 border-t border-white/[0.06] flex gap-2">
-                  <input
+                <form onSubmit={handleAddComment} className="p-4 border-t border-slate-100 bg-white/40 flex gap-2">
+                  <GlassInput
                     value={commentBody}
                     onChange={(e) => setCommentBody(e.target.value)}
                     placeholder="Write a comment response..."
-                    className="flex-1 bg-slate-950 border border-white/[0.08] text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-violet-500 text-slate-100 placeholder:text-slate-600"
                   />
-                  <button
+                  <AnimatedButton
                     type="submit"
                     disabled={addCommentMutation.isPending}
-                    className="btn btn-primary px-4 text-xs flex items-center gap-1"
+                    variant="primary"
+                    className="px-4"
                   >
                     <Send className="h-3.5 w-3.5" /> Post
-                  </button>
+                  </AnimatedButton>
                 </form>
               </>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-xs">
-                <MessageSquare className="h-10 w-10 text-slate-700 mb-2" />
-                <p>Select an active discussion thread to review remarks.</p>
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-xs py-20">
+                <MessageSquare className="h-10 w-10 text-slate-300 mb-2" />
+                <p className="font-semibold">Select a discussion thread to review remarks.</p>
               </div>
             )}
-          </div>
+          </GlassCard>
         </div>
       )}
 
       {activeTab === 'decisions' && (
-        <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl overflow-hidden">
+        <GlassCard className="p-0 overflow-hidden">
           <table className="data-table">
             <thead>
               <tr>
                 <th>Decision Log ID</th>
                 <th>Objective Details</th>
                 <th>Actor</th>
-                <th>Resolution Decision</th>
+                <th>Resolution</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -217,48 +219,48 @@ export default function CollaborationPage() {
                 </tr>
               ) : decisions.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-20 text-slate-500 text-xs">No decision log logs found.</td>
+                  <td colSpan={5} className="text-center py-20 text-slate-400 text-xs">No decision log logs found.</td>
                 </tr>
               ) : (
                 decisions.map((d, i) => (
                   <tr key={i}>
-                    <td className="mono text-xs text-slate-300">{d.id || `dec-${i}`}</td>
-                    <td className="text-slate-100 font-semibold">{d.title || d.description}</td>
-                    <td>{d.created_by || d.author}</td>
-                    <td>{d.resolution || 'Approved'}</td>
+                    <td className="mono text-xs text-indigo-600 font-semibold">{d.id || `dec-${i}`}</td>
+                    <td className="text-slate-900 font-bold leading-tight">{d.title || d.description}</td>
+                    <td className="font-semibold text-slate-700">{d.created_by || d.author}</td>
+                    <td className="font-semibold text-slate-700">{d.resolution || 'Approved'}</td>
                     <td>
-                      <span className="badge badge-success">{d.status || 'Resolved'}</span>
+                      <StatusBadge status={d.status || 'Resolved'} />
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
-        </div>
+        </GlassCard>
       )}
 
       {activeTab === 'notifications' && (
-        <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-200">Alert Updates</h2>
+        <GlassCard className="space-y-4 p-5">
+          <h2 className="text-sm font-bold text-slate-800">Alert Updates</h2>
           <div className="space-y-3">
             {loadingNotifications ? (
               <div className="skeleton h-12 w-full" />
             ) : notifications.length === 0 ? (
-              <div className="text-slate-500 text-xs text-center py-10">No recent notifications logs.</div>
+              <div className="text-slate-400 text-xs text-center py-16 font-semibold">No recent notifications.</div>
             ) : (
               notifications.map((n, i) => (
-                <div key={i} className="p-3 bg-slate-950/40 border border-white/[0.03] rounded-lg flex items-center gap-3">
-                  <Bell className="h-4 w-4 text-violet-400" />
+                <div key={i} className="p-3.5 bg-white border border-slate-200/60 rounded-2xl flex items-center gap-3.5 shadow-sm">
+                  <Bell className="h-4.5 w-4.5 text-indigo-500" />
                   <div>
-                    <span className="text-xs font-semibold text-slate-200 block">{n.title || n.message}</span>
-                    <span className="text-[10px] text-slate-500 block mt-0.5">{n.created_at || 'recorded'}</span>
+                    <span className="text-xs font-bold text-slate-800 block leading-tight">{n.title || n.message}</span>
+                    <span className="text-[10px] text-slate-400 block mt-1">{n.created_at || 'recorded'}</span>
                   </div>
                 </div>
               ))
             )}
           </div>
-        </div>
+        </GlassCard>
       )}
-    </div>
+    </motion.div>
   );
 }

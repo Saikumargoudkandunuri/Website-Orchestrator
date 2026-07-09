@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { Search } from 'lucide-react';
 
 interface Props {
   onClose: () => void;
@@ -25,7 +27,6 @@ const COMMANDS: CmdItem[] = [
   { id: 'collab', label: 'Collaboration Hub', category: 'Navigation', path: '/collaboration' },
   { id: 'market', label: 'Marketplace', category: 'Navigation', path: '/marketplace' },
   { id: 'enterprise', label: 'Enterprise Admin', category: 'Navigation', path: '/enterprise' },
-  { id: 'audit', label: 'Audit Trail', category: 'Navigation', path: '/audit-log' },
   { id: 'settings', label: 'Settings', category: 'Navigation', path: '/settings' },
 ];
 
@@ -63,43 +64,60 @@ export default function CommandPalette({ onClose, onNavigate }: Props) {
 
   return (
     <div className="command-overlay" onClick={onClose}>
-      <div className="command-palette" onClick={(e) => e.stopPropagation()}>
-        <input
-          ref={inputRef}
-          className="command-input"
-          placeholder="Search commands, pages, actions…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-        />
-        <div className="command-list">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.97, y: -20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.97, y: -20 }}
+        transition={{ type: "spring", stiffness: 400, damping: 28 }}
+        className="w-full max-w-xl bg-white/95 backdrop-blur-3xl border border-slate-200/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col p-2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="relative flex items-center border-b border-slate-100 px-4 py-3">
+          <Search className="h-4.5 w-4.5 text-slate-400 mr-3" />
+          <input
+            ref={inputRef}
+            className="w-full bg-transparent text-slate-800 text-sm focus:outline-none placeholder:text-slate-400 font-semibold"
+            placeholder="Search commands, pages, actions…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+        </div>
+
+        <div className="overflow-y-auto max-h-[300px] py-2 scrollbar-thin">
           {Object.entries(groups).map(([cat, items]) => (
             <div key={cat}>
-              <div className="command-group-title">{cat}</div>
+              <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest px-4 py-2">{cat}</div>
               {items.map((item) => {
                 globalIdx++;
                 const idx = globalIdx;
                 return (
                   <div
                     key={item.id}
-                    className={`command-item${idx === selectedIdx ? ' selected' : ''}`}
+                    className={`flex items-center justify-between px-4 py-2.5 mx-2 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                      idx === selectedIdx ? 'bg-indigo-50/80 text-indigo-600' : 'text-slate-600 hover:bg-slate-50'
+                    }`}
                     onClick={() => onNavigate(item.path)}
                     onMouseEnter={() => setSelectedIdx(idx)}
                   >
-                    <span className="command-item-label">{item.label}</span>
-                    {item.shortcut && <span className="command-item-shortcut">{item.shortcut}</span>}
+                    <span>{item.label}</span>
+                    {item.shortcut && (
+                      <span className="font-mono text-[10px] text-slate-400 bg-slate-100 border border-slate-200/50 px-1.5 py-0.5 rounded-md">
+                        {item.shortcut}
+                      </span>
+                    )}
                   </div>
                 );
               })}
             </div>
           ))}
           {filtered.length === 0 && (
-            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+            <div className="py-12 text-center text-slate-400 text-xs font-medium">
               No results for "{query}"
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

@@ -3,7 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactFlow, { Background, Controls } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { automationApi } from '../api';
-import { Play, Plus, BookOpen, Clock, Activity, Settings, HelpCircle, ArrowRight } from 'lucide-react';
+import { Plus, Clock, Activity, Settings, ArrowRight } from 'lucide-react';
+import { GlassCard, AnimatedButton, GlassInput, StatusBadge } from '../components/PremiumUI';
+import { motion } from 'framer-motion';
 
 const workflowNodes = [
   {
@@ -11,40 +13,40 @@ const workflowNodes = [
     type: 'input',
     data: { label: '▶ Start Trigger (Schedule/Webhook)' },
     position: { x: 50, y: 150 },
-    style: { background: 'rgba(15, 18, 25, 0.95)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', fontSize: '11px', width: 180 }
+    style: { background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(0,0,0,0.06)', color: '#0f172a', fontSize: '11px', width: 180, borderRadius: '12px', fontWeight: 'bold' }
   },
   {
     id: 'crawl',
     data: { label: '🕸 Crawl Web Site pages' },
     position: { x: 280, y: 150 },
-    style: { background: 'rgba(15, 18, 25, 0.95)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', fontSize: '11px', width: 180 }
+    style: { background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(0,0,0,0.06)', color: '#0f172a', fontSize: '11px', width: 180, borderRadius: '12px', fontWeight: 'bold' }
   },
   {
     id: 'check',
     data: { label: '🔍 Run SEO & Quality Checks' },
     position: { x: 510, y: 150 },
-    style: { background: 'rgba(15, 18, 25, 0.95)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', fontSize: '11px', width: 180 }
+    style: { background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(0,0,0,0.06)', color: '#0f172a', fontSize: '11px', width: 180, borderRadius: '12px', fontWeight: 'bold' }
   },
   {
     id: 'fix',
     data: { label: '✨ Generate AI Code Fixes' },
     position: { x: 740, y: 150 },
-    style: { background: 'rgba(15, 18, 25, 0.95)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', fontSize: '11px', width: 180 }
+    style: { background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(0,0,0,0.06)', color: '#0f172a', fontSize: '11px', width: 180, borderRadius: '12px', fontWeight: 'bold' }
   },
   {
     id: 'governance',
     type: 'output',
-    data: { label: '🛡 Governance approval & Publish' },
+    data: { label: '🛡 Governance approval' },
     position: { x: 970, y: 150 },
-    style: { background: 'rgba(15, 18, 25, 0.95)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', fontSize: '11px', width: 180 }
+    style: { background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(0,0,0,0.06)', color: '#0f172a', fontSize: '11px', width: 180, borderRadius: '12px', fontWeight: 'bold' }
   }
 ];
 
 const workflowEdges = [
-  { id: 'e-start-crawl', source: 'start', target: 'crawl', animated: true, style: { stroke: '#7c5cfc' } },
-  { id: 'e-crawl-check', source: 'crawl', target: 'check', animated: true, style: { stroke: '#7c5cfc' } },
-  { id: 'e-check-fix', source: 'check', target: 'fix', animated: true, style: { stroke: '#7c5cfc' } },
-  { id: 'e-fix-gov', source: 'fix', target: 'governance', animated: true, style: { stroke: '#7c5cfc' } },
+  { id: 'e-start-crawl', source: 'start', target: 'crawl', animated: true, style: { stroke: '#6366f1', strokeWidth: 2 } },
+  { id: 'e-crawl-check', source: 'crawl', target: 'check', animated: true, style: { stroke: '#6366f1', strokeWidth: 2 } },
+  { id: 'e-check-fix', source: 'check', target: 'fix', animated: true, style: { stroke: '#6366f1', strokeWidth: 2 } },
+  { id: 'e-fix-gov', source: 'fix', target: 'governance', animated: true, style: { stroke: '#6366f1', strokeWidth: 2 } },
 ];
 
 export default function AutomationPage() {
@@ -87,12 +89,16 @@ export default function AutomationPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="space-y-8"
+    >
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-50 tracking-tight">Automation Studio</h1>
-          <p className="text-sm text-slate-400">Design automated loops for crawling, auditing, fixing, and verifying site adjustments</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Automation Studio</h1>
+          <p className="text-sm text-slate-500 mt-1">Design automated crawling, checks verification, and release publish flows</p>
         </div>
       </div>
 
@@ -103,52 +109,51 @@ export default function AutomationPage() {
       </div>
 
       {activeTab === 'builder' && (
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
           {/* Creator form */}
-          <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 space-y-4 xl:col-span-1">
-            <h2 className="text-sm font-semibold text-slate-200">Create Custom Loop</h2>
+          <GlassCard className="space-y-4 xl:col-span-1">
+            <h2 className="text-sm font-bold text-slate-800">Create Custom Loop</h2>
             <form onSubmit={handleCreateWorkflow} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Workflow Name</label>
-                <input
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Workflow Name</label>
+                <GlassInput
                   value={workflowName}
                   onChange={(e) => setWorkflowName(e.target.value)}
                   placeholder="e.g. Production Auto-Fixer"
-                  className="w-full bg-slate-950 border border-white/[0.08] text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-violet-500 text-slate-100 placeholder:text-slate-600"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Description</label>
-                <input
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Description</label>
+                <GlassInput
                   value={workflowDesc}
                   onChange={(e) => setWorkflowDesc(e.target.value)}
-                  placeholder="Summarize what this loop does..."
-                  className="w-full bg-slate-950 border border-white/[0.08] text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-violet-500 text-slate-100 placeholder:text-slate-600"
+                  placeholder="Summarize loop objective..."
                 />
               </div>
 
-              <button
+              <AnimatedButton
                 type="submit"
                 disabled={createWfMutation.isPending}
-                className="w-full btn btn-primary flex justify-center items-center gap-1.5 py-2 text-xs"
+                variant="primary"
+                className="w-full py-2.5"
               >
                 <Plus className="h-4 w-4" /> Save Loop Definition
-              </button>
+              </AnimatedButton>
             </form>
-          </div>
+          </GlassCard>
 
-          {/* Visual flow canvas builder */}
-          <div className="xl:col-span-3 bg-slate-950/60 border border-white/[0.06] rounded-xl h-[450px] overflow-hidden relative">
-            <div className="absolute top-4 left-4 z-10 text-[10px] bg-slate-900 border border-white/[0.08] px-2.5 py-1.5 rounded text-slate-400 font-mono">
-              Live Loop: Crawl → Check → Fix → Publish
+          {/* Visual flow canvas */}
+          <div className="xl:col-span-3 bg-white/60 border border-slate-200/80 rounded-2xl h-[450px] overflow-hidden relative shadow-md">
+            <div className="absolute top-4 left-4 z-10 text-[10px] bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-slate-600 font-bold shadow-sm">
+              Live Loop: Crawl → Check → Fix → Governance
             </div>
             <ReactFlow
               nodes={workflowNodes}
               edges={workflowEdges}
               fitView
             >
-              <Background color="rgba(255,255,255,0.06)" gap={16} />
+              <Background color="rgba(99,102,241,0.06)" gap={16} />
               <Controls />
             </ReactFlow>
           </div>
@@ -156,27 +161,27 @@ export default function AutomationPage() {
       )}
 
       {activeTab === 'library' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[
             { name: 'Weekly SEO Audit', desc: 'Runs crawl scans and outputs diagnostic metrics every Monday.', trigger: 'Scheduled (Cron)', icon: Clock },
             { name: 'Staging Auto-Publisher', desc: 'Triggers on code changes, audits changes, and auto-publishes if healthy.', trigger: 'Staging Trigger', icon: Activity },
-            { name: 'Critical Remediation Loop', desc: 'Continuously monitors site health and rolls back breaking releases.', trigger: 'Live Alert Trigger', icon: Settings },
+            { name: 'Critical Release Loop', desc: 'Continuously monitors site health and rolls back breaking releases.', trigger: 'Live Alert Trigger', icon: Settings },
           ].map((t, idx) => (
-            <div key={idx} className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 flex flex-col justify-between group hover:border-violet-500/40 transition-colors">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-violet-950/40 rounded-lg border border-violet-800/40 text-violet-400">
+            <div key={idx} className="bg-white/80 border border-slate-200/80 rounded-2xl p-6 flex flex-col justify-between hover:border-indigo-400/50 transition-colors shadow-sm">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-indigo-50 rounded-xl border border-indigo-100/50 text-indigo-600">
                     <t.icon className="h-5 w-5" />
                   </div>
-                  <h3 className="text-sm font-semibold text-slate-200">{t.name}</h3>
+                  <h3 className="text-sm font-bold text-slate-800">{t.name}</h3>
                 </div>
-                <p className="text-xs text-slate-400 mt-2">{t.desc}</p>
+                <p className="text-xs text-slate-500 leading-relaxed mt-2">{t.desc}</p>
               </div>
 
-              <div className="flex items-center justify-between mt-4">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-white/[0.03]">{t.trigger}</span>
-                <button className="text-xs text-violet-400 hover:text-violet-300 font-semibold flex items-center gap-1">
-                  Activate <ArrowRight className="h-3 w-3" />
+              <div className="flex items-center justify-between mt-5 pt-4 border-t border-slate-100">
+                <span className="text-[9.5px] font-extrabold uppercase tracking-widest text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{t.trigger}</span>
+                <button className="text-xs text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1">
+                  Activate <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
@@ -185,38 +190,33 @@ export default function AutomationPage() {
       )}
 
       {activeTab === 'history' && (
-        <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl overflow-hidden">
+        <GlassCard className="p-0 overflow-hidden">
           <table className="data-table">
             <thead>
               <tr>
                 <th>Execution ID</th>
                 <th>Workflow Name</th>
                 <th>Status</th>
-                <th>Execution Duration</th>
+                <th>Duration</th>
                 <th>Crawl Date</th>
               </tr>
             </thead>
             <tbody>
               {mockHistory.map((h) => (
                 <tr key={h.id}>
-                  <td className="mono text-xs text-slate-300">{h.id}</td>
-                  <td className="text-slate-100 font-semibold">{h.name}</td>
+                  <td className="mono text-xs text-indigo-600 font-semibold">{h.id}</td>
+                  <td className="text-slate-900 font-bold leading-tight">{h.name}</td>
                   <td>
-                    <span className={`badge ${
-                      h.status === 'Completed' ? 'badge-success' :
-                      h.status === 'Failed' ? 'badge-error' : 'badge-warning'
-                    }`}>
-                      {h.status}
-                    </span>
+                    <StatusBadge status={h.status} />
                   </td>
-                  <td className="text-xs text-slate-300">{h.duration}</td>
-                  <td className="text-xs text-slate-500">{h.date}</td>
+                  <td className="text-xs text-slate-600 font-medium">{h.duration}</td>
+                  <td className="text-xs text-slate-400">{h.date}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </GlassCard>
       )}
-    </div>
+    </motion.div>
   );
 }

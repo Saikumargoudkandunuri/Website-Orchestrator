@@ -1,30 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { coreApi, type Issue } from '../api';
+import { useQuery } from '@tanstack/react-query';
+import { coreApi, Issue } from '../api';
+import { GlassCard, StatusBadge } from '../components/PremiumUI';
+import { motion } from 'framer-motion';
 
 export default function IssuesPage() {
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
 
-  useEffect(() => {
-    coreApi.listIssues()
-      .then(setIssues)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: issues = [], isLoading } = useQuery<Issue[]>({
+    queryKey: ['issues'],
+    queryFn: coreApi.listIssues,
+  });
 
   const filtered = filter === 'all' ? issues : issues.filter((i) => i.severity === filter);
-  const severities = ['all', ...new Set(issues.map((i) => i.severity))];
+  const severities = ['all', 'critical', 'high', 'medium', 'low'];
 
   return (
-    <div>
-      <div className="page-header">
-        <div className="page-header-left">
-          <h1>Issues</h1>
-          <p>Detected problems across your website</p>
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="space-y-8"
+    >
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Active Issues Log</h1>
+          <p className="text-sm text-slate-500 mt-1">Review website failures, missing parameters, and SEO issues</p>
         </div>
-        <div className="page-header-actions">
-          <span className="badge badge-default">{issues.length} total</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full shadow-sm">
+            {issues.length} Issues Detected
+          </span>
         </div>
       </div>
 
@@ -32,27 +38,24 @@ export default function IssuesPage() {
       <div className="tabs">
         {severities.map((s) => (
           <button key={s} className={`tab${filter === s ? ' active' : ''}`} onClick={() => setFilter(s)}>
-            {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
-            <span style={{ marginLeft: '6px', opacity: 0.5 }}>
-              {s === 'all' ? issues.length : issues.filter((i) => i.severity === s).length}
+            {s === 'all' ? 'All Severities' : s.charAt(0).toUpperCase() + s.slice(1)}
+            <span className="ml-1.5 opacity-55">
+              ({s === 'all' ? issues.length : issues.filter((i) => i.severity === s).length})
             </span>
           </button>
         ))}
       </div>
 
-      <div className="card">
-        <div className="card-body-flush">
-          {loading ? (
-            <div style={{ padding: '20px' }}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <div key={n} className="skeleton" style={{ height: '40px', marginBottom: '8px' }} />
-              ))}
+      <GlassCard className="p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          {isLoading ? (
+            <div className="p-6 space-y-4">
+              <div className="skeleton h-8 w-full" />
+              <div className="skeleton h-8 w-full" />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">🔍</div>
-              <h3>No Issues Found</h3>
-              <p>Run a crawl to detect issues, or adjust your filters.</p>
+            <div className="text-center py-20 text-slate-400 text-xs">
+              No active issues registered. Run a crawl scan to detect issues.
             </div>
           ) : (
             <table className="data-table">
@@ -60,30 +63,28 @@ export default function IssuesPage() {
                 <tr>
                   <th>Severity</th>
                   <th>Category</th>
-                  <th>URL</th>
+                  <th>Page URL</th>
                   <th>Description</th>
-                  <th>Detected</th>
+                  <th>Detected At</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((issue) => (
                   <tr key={issue.id}>
                     <td>
-                      <span className={`badge badge-${issue.severity === 'critical' || issue.severity === 'high' ? 'error' : issue.severity === 'medium' ? 'warning' : 'info'}`}>
-                        {issue.severity}
-                      </span>
+                      <StatusBadge status={issue.severity} />
                     </td>
-                    <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{issue.category}</td>
-                    <td className="mono" style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue.url}</td>
-                    <td>{issue.description}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{issue.detected_at}</td>
+                    <td className="text-slate-900 font-bold">{issue.category}</td>
+                    <td className="mono text-xs max-w-sm truncate text-indigo-600 font-semibold">{issue.url}</td>
+                    <td className="text-slate-600 font-medium">{issue.description}</td>
+                    <td className="text-xs text-slate-400">{issue.detected_at}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
         </div>
-      </div>
-    </div>
+      </GlassCard>
+    </motion.div>
   );
 }

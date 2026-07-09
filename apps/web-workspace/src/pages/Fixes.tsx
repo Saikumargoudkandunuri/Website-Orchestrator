@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { coreApi, SuggestedFix } from '../api';
 import { Check, X, Undo2, Code, FileCode, Shield, GitCompare, Play } from 'lucide-react';
+import { GlassCard, AnimatedButton, StatusBadge } from '../components/PremiumUI';
+import { motion } from 'framer-motion';
 
 export default function FixesPage() {
   const queryClient = useQueryClient();
@@ -32,12 +34,16 @@ export default function FixesPage() {
   const statuses = ['all', 'pending', 'approved', 'applied', 'rejected'];
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="space-y-8"
+    >
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-50 tracking-tight">AI Optimization Fixes</h1>
-          <p className="text-sm text-slate-400">Review suggested AI modifications, view structural code diffs, and authorize updates</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">AI Optimization Fixes</h1>
+          <p className="text-sm text-slate-500 mt-1">Review suggestions code adjustments and verify rollback status controls</p>
         </div>
       </div>
 
@@ -53,124 +59,116 @@ export default function FixesPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* Fixes List */}
-        <div className="xl:col-span-1 bg-slate-900/40 border border-white/[0.06] rounded-xl overflow-hidden flex flex-col max-h-[600px]">
-          <div className="p-4 border-b border-white/[0.06]">
-            <h2 className="text-sm font-semibold text-slate-200">Suggestions Log</h2>
+        <GlassCard className="xl:col-span-1 p-0 overflow-hidden flex flex-col max-h-[580px]">
+          <div className="p-4 border-b border-slate-100 bg-white/50">
+            <h2 className="text-sm font-bold text-slate-800">Suggestions Log</h2>
           </div>
 
-          <div className="divide-y divide-white/[0.04] overflow-y-auto flex-1">
+          <div className="divide-y divide-slate-100 overflow-y-auto flex-1 scrollbar-thin">
             {isLoading ? (
               <div className="p-4 space-y-3">
                 <div className="skeleton h-12 w-full" />
-                <div className="skeleton h-12 w-full" />
               </div>
             ) : filtered.length === 0 ? (
-              <div className="text-center py-20 text-slate-500 text-xs">
-                No suggested fixes.
+              <div className="text-center py-20 text-slate-400 text-xs">
+                No suggested fixes found.
               </div>
             ) : (
               filtered.map((fix) => (
                 <div
                   key={fix.id}
                   onClick={() => setSelectedFixId(fix.id)}
-                  className={`p-4 hover:bg-slate-900/30 transition-colors cursor-pointer space-y-2 ${selectedFix?.id === fix.id ? 'bg-slate-900/50 border-l-2 border-violet-500' : ''}`}
+                  className={`p-4 hover:bg-slate-50/50 transition-colors cursor-pointer space-y-2 ${selectedFix?.id === fix.id ? 'bg-slate-50 border-l-3 border-indigo-500' : ''}`}
                 >
                   <div className="flex justify-between items-start gap-2">
-                    <span className="text-xs font-semibold text-slate-200 line-clamp-1">{fix.description}</span>
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                      fix.status === 'approved' || fix.status === 'applied' ? 'bg-emerald-950 text-emerald-400' :
-                      fix.status === 'rejected' ? 'bg-rose-950 text-rose-400' : 'bg-amber-950 text-amber-400'
-                    }`}>
-                      {fix.status}
-                    </span>
+                    <span className="text-xs font-bold text-slate-700 line-clamp-1">{fix.description}</span>
+                    <StatusBadge status={fix.status} />
                   </div>
-                  <p className="text-[10px] text-slate-500 font-mono">ID: {fix.id}</p>
+                  <span className="text-[10px] text-slate-400 font-mono block">ID: {fix.id}</span>
                 </div>
               ))
             )}
           </div>
-        </div>
+        </GlassCard>
 
         {/* Selected Fix Detail & Diff Viewer */}
-        <div className="xl:col-span-2 bg-slate-900/40 border border-white/[0.06] rounded-xl overflow-hidden flex flex-col min-h-[500px]">
+        <GlassCard className="xl:col-span-2 p-5 flex flex-col justify-between min-h-[500px]">
           {selectedFix ? (
-            <div className="p-5 flex-1 flex flex-col justify-between">
-              <div className="space-y-4">
-                {/* Header */}
-                <div className="flex justify-between items-start gap-4">
-                  <div>
-                    <h3 className="text-base font-semibold text-slate-200">{selectedFix.description}</h3>
-                    <p className="text-xs text-slate-500 mt-1">Associated Issue ID: <span className="font-mono text-slate-400">{selectedFix.issue_id}</span></p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {selectedFix.status === 'pending' && (
-                      <>
-                        <button
-                          onClick={() => handleAction(selectedFix.id, 'approve')}
-                          className="btn btn-sm"
-                          style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)' }}
-                        >
-                          <Check className="h-4 w-4" /> Approve
-                        </button>
-                        <button
-                          onClick={() => handleAction(selectedFix.id, 'reject')}
-                          className="btn btn-sm"
-                          style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}
-                        >
-                          <X className="h-4 w-4" /> Reject
-                        </button>
-                      </>
-                    )}
-                    {(selectedFix.status === 'approved' || selectedFix.status === 'applied') && (
-                      <button
-                        onClick={() => handleAction(selectedFix.id, 'rollback')}
-                        className="btn btn-sm btn-secondary flex items-center gap-1"
-                      >
-                        <Undo2 className="h-4 w-4" /> Rollback
-                      </button>
-                    )}
-                  </div>
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-5">
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">{selectedFix.description}</h3>
+                  <p className="text-xs text-slate-400 mt-1">Associated Issue: <span className="font-mono text-indigo-600">{selectedFix.issue_id}</span></p>
                 </div>
 
-                {/* Diff Preview */}
-                <div className="space-y-2">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block flex items-center gap-1">
-                    <GitCompare className="h-3 w-3" /> Source Code Diff Analysis
-                  </span>
-                  <div className="border border-white/[0.06] rounded-lg bg-slate-950 p-4 font-mono text-xs text-slate-300 overflow-x-auto space-y-1.5">
-                    {selectedFix.diff ? (
-                      selectedFix.diff.split('\n').map((line, i) => (
-                        <div
-                          key={i}
-                          className={`p-0.5 rounded ${
-                            line.startsWith('+') ? 'bg-emerald-950/40 text-emerald-400' :
-                            line.startsWith('-') ? 'bg-rose-950/40 text-rose-400' :
-                            line.startsWith('@@') ? 'text-violet-400 font-semibold' : 'text-slate-400'
-                          }`}
-                        >
-                          {line}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-slate-600 text-center py-12">
-                        No structural code diff present for this fix.
+                <div className="flex items-center gap-2">
+                  {selectedFix.status === 'pending' && (
+                    <>
+                      <AnimatedButton
+                        onClick={() => handleAction(selectedFix.id, 'approve')}
+                        variant="primary"
+                        className="py-2"
+                      >
+                        <Check className="h-4.5 w-4.5" /> Approve
+                      </AnimatedButton>
+                      <AnimatedButton
+                        onClick={() => handleAction(selectedFix.id, 'reject')}
+                        className="py-2 text-rose-600 hover:bg-rose-50"
+                      >
+                        <X className="h-4.5 w-4.5" /> Reject
+                      </AnimatedButton>
+                    </>
+                  )}
+                  {(selectedFix.status === 'approved' || selectedFix.status === 'applied') && (
+                    <AnimatedButton
+                      onClick={() => handleAction(selectedFix.id, 'rollback')}
+                      variant="secondary"
+                      className="py-2"
+                    >
+                      <Undo2 className="h-4.5 w-4.5" /> Rollback
+                    </AnimatedButton>
+                  )}
+                </div>
+              </div>
+
+              {/* Diff Preview */}
+              <div className="space-y-3">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block flex items-center gap-1.5">
+                  <GitCompare className="h-4 w-4 text-slate-500" /> Source Code Diff Analysis
+                </span>
+                <div className="border border-slate-200/80 rounded-xl bg-slate-950 p-4 font-mono text-xs text-slate-300 overflow-x-auto space-y-1.5 shadow-inner">
+                  {selectedFix.diff ? (
+                    selectedFix.diff.split('\n').map((line, i) => (
+                      <div
+                        key={i}
+                        className={`p-0.5 rounded ${
+                          line.startsWith('+') ? 'bg-emerald-950/40 text-emerald-400' :
+                          line.startsWith('-') ? 'bg-rose-950/40 text-rose-400' :
+                          line.startsWith('@@') ? 'text-violet-400 font-semibold' : 'text-slate-400'
+                        }`}
+                      >
+                        {line}
                       </div>
-                    )}
-                  </div>
+                    ))
+                  ) : (
+                    <div className="text-slate-500 text-center py-16">
+                      No structural diff present for this fix.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-xs py-20">
-              <FileCode className="h-10 w-10 text-slate-700 mb-2" />
-              <p>Select a suggestion from the catalog list to review changes.</p>
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-xs py-20">
+              <FileCode className="h-10 w-10 text-slate-300 mb-2" />
+              <p className="font-semibold">Select a suggested fix configuration card to review.</p>
             </div>
           )}
-        </div>
+        </GlassCard>
       </div>
-    </div>
+    </motion.div>
   );
 }

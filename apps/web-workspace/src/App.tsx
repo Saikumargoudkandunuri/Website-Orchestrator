@@ -10,6 +10,7 @@ import {
   useNavigate
 } from '@tanstack/react-router';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { motion, AnimatePresence } from 'framer-motion';
 
 /* ─── Pages ─── */
 import DashboardPage from './pages/Dashboard';
@@ -45,7 +46,6 @@ import {
   Users2,
   Store,
   Building2,
-  FileText,
   CreditCard,
   Settings,
   HelpCircle,
@@ -119,41 +119,43 @@ function AppShell() {
         </div>
 
         {/* Switchers */}
-        <div className="p-3 border-b border-white/[0.04] space-y-2">
+        <div className="p-4 border-b border-slate-100 bg-white/40 space-y-2">
           {/* Org Switcher */}
           <DropdownMenu.Root>
-            <DropdownMenu.Trigger className="w-full flex items-center justify-between bg-slate-950 border border-white/[0.08] rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none">
-              <span className="font-semibold truncate">{selectedOrg}</span>
-              <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+            <DropdownMenu.Trigger className="w-full flex items-center justify-between bg-white border border-slate-200/80 rounded-xl px-3.5 py-2 text-xs text-slate-700 focus:outline-none shadow-sm hover:border-slate-300 transition-colors">
+              <span className="font-bold truncate">{selectedOrg}</span>
+              <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
             </DropdownMenu.Trigger>
-            <DropdownMenu.Content className="bg-slate-900 border border-white/[0.08] rounded-lg p-1 shadow-lg min-w-[200px] z-50">
-              <DropdownMenu.Item onClick={() => setSelectedOrg('Acme Corp')} className="text-xs text-slate-300 hover:bg-slate-800 rounded px-2.5 py-1.5 cursor-pointer">Acme Corp</DropdownMenu.Item>
-              <DropdownMenu.Item onClick={() => setSelectedOrg('Global Industries')} className="text-xs text-slate-300 hover:bg-slate-800 rounded px-2.5 py-1.5 cursor-pointer">Global Industries</DropdownMenu.Item>
+            <DropdownMenu.Content className="bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-xl p-1.5 shadow-lg min-w-[200px] z-50">
+              <DropdownMenu.Item onClick={() => setSelectedOrg('Acme Corp')} className="text-xs font-semibold text-slate-700 hover:bg-indigo-50/80 hover:text-indigo-600 rounded-lg px-3 py-2.5 cursor-pointer outline-none transition-colors">Acme Corp</DropdownMenu.Item>
+              <DropdownMenu.Item onClick={() => setSelectedOrg('Global Industries')} className="text-xs font-semibold text-slate-700 hover:bg-indigo-50/80 hover:text-indigo-600 rounded-lg px-3 py-2.5 cursor-pointer outline-none transition-colors">Global Industries</DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
 
           {/* Workspace Switcher */}
           <DropdownMenu.Root>
-            <DropdownMenu.Trigger className="w-full flex items-center justify-between bg-slate-950 border border-white/[0.08] rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none">
-              <span className="font-semibold truncate">{selectedWs}</span>
-              <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+            <DropdownMenu.Trigger className="w-full flex items-center justify-between bg-white border border-slate-200/80 rounded-xl px-3.5 py-2 text-xs text-slate-700 focus:outline-none shadow-sm hover:border-slate-300 transition-colors">
+              <span className="font-bold truncate">{selectedWs}</span>
+              <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
             </DropdownMenu.Trigger>
-            <DropdownMenu.Content className="bg-slate-900 border border-white/[0.08] rounded-lg p-1 shadow-lg min-w-[200px] z-50">
-              <DropdownMenu.Item onClick={() => setSelectedWs('Production Site')} className="text-xs text-slate-300 hover:bg-slate-800 rounded px-2.5 py-1.5 cursor-pointer">Production Site</DropdownMenu.Item>
-              <DropdownMenu.Item onClick={() => setSelectedWs('Staging Sandbox')} className="text-xs text-slate-300 hover:bg-slate-800 rounded px-2.5 py-1.5 cursor-pointer">Staging Sandbox</DropdownMenu.Item>
+            <DropdownMenu.Content className="bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-xl p-1.5 shadow-lg min-w-[200px] z-50">
+              <DropdownMenu.Item onClick={() => setSelectedWs('Production Site')} className="text-xs font-semibold text-slate-700 hover:bg-indigo-50/80 hover:text-indigo-600 rounded-lg px-3 py-2.5 cursor-pointer outline-none transition-colors">Production Site</DropdownMenu.Item>
+              <DropdownMenu.Item onClick={() => setSelectedWs('Staging Sandbox')} className="text-xs font-semibold text-slate-700 hover:bg-indigo-50/80 hover:text-indigo-600 rounded-lg px-3 py-2.5 cursor-pointer outline-none transition-colors">Staging Sandbox</DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
         </div>
 
         {/* Navigation list */}
-        <div className="flex-1 overflow-y-auto py-3 space-y-1 px-2 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto py-4 space-y-1.5 px-3 scrollbar-thin">
           {navItems.map((item) => {
             const isActive = currentPath === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold ${isActive ? 'active' : ''}`}
+                className={`sidebar-link flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  isActive ? 'bg-indigo-50/70 text-indigo-600 active' : 'text-slate-600 hover:bg-slate-50'
+                }`}
               >
                 <item.icon className="h-4.5 w-4.5" />
                 {item.label}
@@ -164,12 +166,12 @@ function AppShell() {
 
         <div className="sidebar-footer">
           <button
-            className="sidebar-link flex items-center justify-center gap-2 py-2"
+            className="sidebar-link flex items-center justify-center gap-2 py-3 rounded-xl border border-indigo-100 hover:bg-indigo-50 transition-all cursor-pointer"
             onClick={() => setShowAiPanel(true)}
-            style={{ width: '100%', border: 'none', background: 'var(--accent-glow)', cursor: 'pointer' }}
+            style={{ width: '100%', background: 'rgba(99, 102, 241, 0.08)', color: '#6366f1' }}
           >
-            <span>AI Copilot</span>
-            <span className="sidebar-link-badge font-mono">⌘J</span>
+            <span className="font-extrabold text-xs">AI Copilot</span>
+            <span className="sidebar-link-badge font-mono text-[9px] px-1.5 py-0.5 rounded bg-indigo-100/50">⌘J</span>
           </button>
         </div>
       </aside>
@@ -179,22 +181,22 @@ function AppShell() {
         <div className="topbar-breadcrumb">
           <span className="topbar-breadcrumb-item">Console</span>
           <span className="topbar-breadcrumb-sep">/</span>
-          <span className="topbar-breadcrumb-item text-slate-200 font-semibold">{currentLabel}</span>
+          <span className="topbar-breadcrumb-item text-slate-800 font-bold">{currentLabel}</span>
         </div>
 
         <div className="topbar-search" onClick={() => setShowCmdPalette(true)}>
-          <Search className="h-3.5 w-3.5 text-slate-500" />
-          <span className="topbar-search-text">Search commands, workspaces...</span>
+          <Search className="h-3.5 w-3.5 text-slate-400" />
+          <span className="topbar-search-text font-medium">Search commands, workspaces...</span>
           <span className="topbar-search-kbd">⌘K</span>
         </div>
 
         <div className="topbar-actions">
           <button className="topbar-action-btn" onClick={() => setShowAiPanel(v => !v)}>
-            <BrainCircuitIcon className="h-4.5 w-4.5" />
+            <BrainCircuitIcon className="h-4.5 w-4.5 text-indigo-600" />
           </button>
           <button className="topbar-action-btn relative">
-            <Bell className="h-4.5 w-4.5" />
-            <span className="absolute top-1 right-1 h-1.5 w-1.5 bg-violet-500 rounded-full" />
+            <Bell className="h-4.5 w-4.5 text-slate-500" />
+            <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 bg-indigo-600 rounded-full" />
           </button>
           <div className="topbar-avatar">SK</div>
         </div>
@@ -202,7 +204,9 @@ function AppShell() {
 
       {/* ─── Main Content Outlet ─── */}
       <main className="main-content">
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <Outlet />
+        </AnimatePresence>
       </main>
 
       {/* ─── Command Palette ─── */}

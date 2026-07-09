@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { enterpriseApi } from '../api';
-import { Building, ShieldCheck, UserCheck, Key, Plus, FileText, ClipboardList } from 'lucide-react';
+import { Building, ShieldCheck, UserCheck, Key, Plus, ClipboardList } from 'lucide-react';
+import { GlassCard, AnimatedButton, GlassInput, StatusBadge } from '../components/PremiumUI';
+import { motion } from 'framer-motion';
 
 export default function EnterprisePage() {
   const queryClient = useQueryClient();
@@ -20,7 +22,6 @@ export default function EnterprisePage() {
   const [scimUsername, setScimUsername] = useState('');
   const [scimEmail, setScimEmail] = useState('');
 
-  // Queries - Load audit logs for demo org
   const orgId = 'demo-org';
   const { data: auditLogs = [], isLoading: loadingAudits } = useQuery<any[]>({
     queryKey: ['orgAuditLogs', orgId],
@@ -77,12 +78,16 @@ export default function EnterprisePage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="space-y-8"
+    >
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-50 tracking-tight">Enterprise Administration</h1>
-          <p className="text-sm text-slate-400">Establish corporate organizations, manage directory users via SCIM, and trace compliance audits</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Enterprise Administration</h1>
+          <p className="text-sm text-slate-500 mt-1">Manage directory synchronization parameters, corporative organizations, and SSO rules</p>
         </div>
       </div>
 
@@ -94,146 +99,142 @@ export default function EnterprisePage() {
       </div>
 
       {activeTab === 'orgs' && (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Create org form */}
-          <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 space-y-4 xl:col-span-1">
-            <div className="flex items-center gap-2">
-              <Building className="h-4.5 w-4.5 text-violet-400" />
-              <h2 className="text-sm font-semibold text-slate-200">Create Corporate Org</h2>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* Create org */}
+          <GlassCard className="space-y-4 xl:col-span-1">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+              <Building className="h-4.5 w-4.5 text-indigo-500" />
+              <h2 className="text-sm font-bold text-slate-800">Create Corporate Org</h2>
             </div>
             
             <form onSubmit={handleCreateOrg} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Organization Name</label>
-                <input
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Organization Name</label>
+                <GlassInput
                   value={orgName}
                   onChange={(e) => setOrgName(e.target.value)}
                   placeholder="e.g. Acme Corporation"
-                  className="w-full bg-slate-950 border border-white/[0.08] text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-violet-500 text-slate-100 placeholder:text-slate-600"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Workspace Slug</label>
-                <input
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Workspace Slug</label>
+                <GlassInput
                   value={orgSlug}
                   onChange={(e) => setOrgSlug(e.target.value)}
                   placeholder="acme-corp"
-                  className="w-full bg-slate-950 border border-white/[0.08] text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-violet-500 text-slate-100 placeholder:text-slate-600"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Corporate Tier</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Corporate Tier</label>
                 <select
                   value={orgPlan}
                   onChange={(e) => setOrgPlan(e.target.value)}
-                  className="w-full bg-slate-950 border border-white/[0.08] text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-violet-500 text-slate-200"
+                  className="w-full bg-white/70 border border-slate-200 text-slate-700 text-xs px-3 py-2.5 rounded-xl focus:outline-none"
                 >
                   <option value="business">Business Pro</option>
                   <option value="enterprise">Corporate Enterprise</option>
                 </select>
               </div>
 
-              <button
+              <AnimatedButton
                 type="submit"
                 disabled={createOrgMutation.isPending}
-                className="w-full btn btn-primary flex justify-center items-center gap-1.5 py-2 text-xs"
+                variant="primary"
+                className="w-full py-2.5"
               >
                 <Plus className="h-4 w-4" /> Save Organization
-              </button>
+              </AnimatedButton>
             </form>
-          </div>
+          </GlassCard>
 
           {/* Org details preview */}
-          <div className="bg-slate-950/60 border border-white/[0.06] rounded-xl p-5 xl:col-span-2">
-            <h2 className="text-sm font-semibold text-slate-200 mb-3">Enterprise Tenant Details</h2>
-            <div className="bg-black/40 border border-white/[0.03] p-4 rounded-lg font-mono text-[11px] text-slate-400 space-y-2">
+          <GlassCard className="xl:col-span-2 p-5 space-y-3">
+            <h2 className="text-sm font-bold text-slate-800">Enterprise Tenant Details</h2>
+            <div className="bg-slate-950 border border-slate-900 p-4 rounded-xl font-mono text-[11px] text-slate-400 space-y-2 shadow-inner">
               <div>Tenant Scope ID: <span className="text-slate-300">demo-tenant</span></div>
               <div>SSO Federation: <span className="text-slate-500">Not configured (SAML/OIDC available)</span></div>
               <div>Active Workspaces: <span className="text-slate-300">3 Workspaces</span></div>
             </div>
-          </div>
+          </GlassCard>
         </div>
       )}
 
       {activeTab === 'users' && (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Create user SCIM */}
-          <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 space-y-4 xl:col-span-1">
-            <div className="flex items-center gap-2">
-              <UserCheck className="h-4.5 w-4.5 text-violet-400" />
-              <h2 className="text-sm font-semibold text-slate-200">SCIM Directory Provisioning</h2>
+          <GlassCard className="space-y-4 xl:col-span-1">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+              <UserCheck className="h-4.5 w-4.5 text-indigo-500" />
+              <h2 className="text-sm font-bold text-slate-800">Provision Directory User</h2>
             </div>
 
             <form onSubmit={handleCreateScimUser} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Username</label>
-                <input
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Username</label>
+                <GlassInput
                   value={scimUsername}
                   onChange={(e) => setScimUsername(e.target.value)}
                   placeholder="e.g. alice.smith"
-                  className="w-full bg-slate-950 border border-white/[0.08] text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-violet-500 text-slate-100 placeholder:text-slate-600"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Primary Email</label>
-                <input
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Primary Email</label>
+                <GlassInput
                   type="email"
                   value={scimEmail}
                   onChange={(e) => setScimEmail(e.target.value)}
                   placeholder="alice@acme.com"
-                  className="w-full bg-slate-950 border border-white/[0.08] text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-violet-500 text-slate-100 placeholder:text-slate-600"
                 />
               </div>
 
-              <button
+              <AnimatedButton
                 type="submit"
                 disabled={createScimUserMutation.isPending}
-                className="w-full btn btn-primary flex justify-center items-center gap-1.5 py-2 text-xs"
+                variant="primary"
+                className="w-full py-2.5"
               >
                 <Plus className="h-4 w-4" /> Provision Directory User
-              </button>
+              </AnimatedButton>
             </form>
-          </div>
+          </GlassCard>
 
-          <div className="bg-slate-950/60 border border-white/[0.06] rounded-xl p-5 xl:col-span-2">
-            <h2 className="text-sm font-semibold text-slate-200 mb-3">SCIM Directory Status</h2>
-            <div className="bg-black/40 border border-white/[0.03] p-4 rounded-lg font-mono text-[11px] text-slate-400 space-y-2">
+          <GlassCard className="xl:col-span-2 p-5 space-y-3">
+            <h2 className="text-sm font-bold text-slate-800">SCIM Directory Status</h2>
+            <div className="bg-slate-950 border border-slate-900 p-4 rounded-xl font-mono text-[11px] text-slate-400 space-y-2 shadow-inner">
               <div>Sync Engine Status: <span className="text-emerald-400 font-bold">Active Connection</span></div>
               <div>SCIM Endpoint URL: <span className="text-slate-300">/v1/enterprise/scim/v2/Users</span></div>
             </div>
-          </div>
+          </GlassCard>
         </div>
       )}
 
       {activeTab === 'roles' && (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Assign user roles */}
-          <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 space-y-4 xl:col-span-1">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4.5 w-4.5 text-violet-400" />
-              <h2 className="text-sm font-semibold text-slate-200">Assign Member Access</h2>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          <GlassCard className="space-y-4 xl:col-span-1">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+              <ShieldCheck className="h-4.5 w-4.5 text-indigo-500" />
+              <h2 className="text-sm font-bold text-slate-800">Assign Member Access</h2>
             </div>
 
             <form onSubmit={handleAssignRole} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Target User ID</label>
-                <input
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Target User ID</label>
+                <GlassInput
                   value={assignUser}
                   onChange={(e) => setAssignUser(e.target.value)}
                   placeholder="e.g. user-12"
-                  className="w-full bg-slate-950 border border-white/[0.08] text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-violet-500 text-slate-100 placeholder:text-slate-600"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Access Role</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Access Role</label>
                 <select
                   value={assignRole}
                   onChange={(e) => setAssignRole(e.target.value)}
-                  className="w-full bg-slate-950 border border-white/[0.08] text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-violet-500 text-slate-200"
+                  className="w-full bg-white/70 border border-slate-200 text-slate-700 text-xs px-3 py-2.5 rounded-xl focus:outline-none"
                 >
                   <option value="admin">Administrator (Full Access)</option>
                   <option value="editor">Editor (Governance review allowed)</option>
@@ -241,24 +242,25 @@ export default function EnterprisePage() {
                 </select>
               </div>
 
-              <button
+              <AnimatedButton
                 type="submit"
                 disabled={assignRoleMutation.isPending}
-                className="w-full btn btn-primary flex justify-center items-center gap-1.5 py-2 text-xs"
+                variant="primary"
+                className="w-full py-2.5"
               >
                 <Key className="h-3.5 w-3.5" /> Apply Access parameters
-              </button>
+              </AnimatedButton>
             </form>
-          </div>
+          </GlassCard>
         </div>
       )}
 
       {activeTab === 'compliance' && (
-        <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl overflow-hidden">
-          <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
+        <GlassCard className="p-0 overflow-hidden">
+          <div className="p-5 border-b border-slate-100 bg-white/50">
             <div className="flex items-center gap-2">
-              <ClipboardList className="h-4.5 w-4.5 text-violet-400" />
-              <h2 className="text-sm font-semibold text-slate-200">Compliance Audit logs</h2>
+              <ClipboardList className="h-4.5 w-4.5 text-indigo-500" />
+              <h2 className="text-sm font-bold text-slate-800">Compliance Audit logs</h2>
             </div>
           </div>
 
@@ -278,22 +280,22 @@ export default function EnterprisePage() {
                 </tr>
               ) : auditLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-16 text-slate-500 text-xs">No compliance audit records found.</td>
+                  <td colSpan={4} className="text-center py-16 text-slate-400 text-xs">No compliance audit records found.</td>
                 </tr>
               ) : (
                 auditLogs.map((log: any, i: number) => (
                   <tr key={i}>
                     <td className="mono text-xs text-slate-400">{log.id || `aud-${i}`}</td>
-                    <td className="text-slate-100 font-semibold">{log.action || 'Directory Provision'}</td>
-                    <td>{log.actor_id || log.actor || 'demo-user'}</td>
-                    <td className="text-xs text-slate-500">{log.timestamp || 'recorded'}</td>
+                    <td className="text-slate-900 font-bold">{log.action || 'Directory Sync Provision'}</td>
+                    <td className="font-semibold text-slate-700">{log.actor_id || log.actor || 'demo-user'}</td>
+                    <td className="text-xs text-slate-400">{log.timestamp || 'recorded'}</td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
-        </div>
+        </GlassCard>
       )}
-    </div>
+    </motion.div>
   );
 }

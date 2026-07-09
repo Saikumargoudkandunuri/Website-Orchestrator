@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { agenticApi } from '../api';
 import { Cpu, Target, BrainCircuit, Activity, Award, ShieldAlert, Play, CheckCircle2, AlertTriangle, Layers, Send } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { GlassCard, AnimatedButton, GlassInput, StatusBadge } from '../components/PremiumUI';
+import { motion } from 'framer-motion';
 
 export default function AgenticPage() {
   const queryClient = useQueryClient();
@@ -65,20 +67,22 @@ export default function AgenticPage() {
     missionMutation.mutate({ goalId, objective });
   };
 
-  // Map tool scores for graphing
   const toolChartData = toolScores.map((t: any) => ({
     name: t.tool_name || t.tool || 'Unknown Tool',
     success: t.success_rate || t.score || 0.8,
-    error: 1 - (t.success_rate || t.score || 0.8),
   }));
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="space-y-8"
+    >
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-50 tracking-tight">Agentic AI Control Plane</h1>
-          <p className="text-sm text-slate-400">Monitor cognitive memories, execute step checkpoints, and analyze multi-agent learning scores</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Agentic AI Control Plane</h1>
+          <p className="text-sm text-slate-500 mt-1">Monitor goals memory catalogs, checkpoint runtimes, and track tool reliability ratings</p>
         </div>
       </div>
 
@@ -90,216 +94,218 @@ export default function AgenticPage() {
       </div>
 
       {activeTab === 'memory' && (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Goals catalog */}
-          <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <Target className="h-4.5 w-4.5 text-violet-400" />
-              <h2 className="text-sm font-semibold text-slate-200">System Goals</h2>
+          <GlassCard className="space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+              <Target className="h-4.5 w-4.5 text-indigo-500" />
+              <h2 className="text-sm font-bold text-slate-800">System Goals</h2>
             </div>
             
-            <div className="space-y-3 overflow-y-auto max-h-[400px]">
+            <div className="space-y-3 overflow-y-auto max-h-[400px] pr-1 scrollbar-thin">
               {loadingGoals ? (
                 <div className="skeleton h-12 w-full" />
               ) : goals.length === 0 ? (
-                <p className="text-slate-500 text-xs text-center py-10">No cognitive goals stored.</p>
+                <p className="text-slate-400 text-xs text-center py-12">No cognitive goals present.</p>
               ) : (
                 goals.map((g, i) => (
-                  <div key={i} className="p-3 bg-slate-950/40 border border-white/[0.03] rounded-lg">
-                    <span className="text-xs font-semibold text-slate-200 block">{g.objective || g.description || 'Goal objective'}</span>
-                    <span className="text-[10px] text-slate-500 font-mono mt-1 block">ID: {g.goal_id || i}</span>
+                  <div key={i} className="p-3 bg-slate-50/80 border border-slate-100 rounded-xl space-y-1">
+                    <span className="text-xs font-bold text-slate-700 block leading-tight">{g.objective || g.description}</span>
+                    <span className="text-[9px] text-slate-400 font-mono mt-1.5 block">ID: {g.goal_id || i}</span>
                   </div>
                 ))
               )}
             </div>
-          </div>
+          </GlassCard>
 
           {/* Reflections catalog */}
-          <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <BrainCircuit className="h-4.5 w-4.5 text-violet-400" />
-              <h2 className="text-sm font-semibold text-slate-200">Reflective Lessons</h2>
+          <GlassCard className="space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+              <BrainCircuit className="h-4.5 w-4.5 text-indigo-500" />
+              <h2 className="text-sm font-bold text-slate-800">Reflective Lessons</h2>
             </div>
 
-            <div className="space-y-3 overflow-y-auto max-h-[400px]">
+            <div className="space-y-3 overflow-y-auto max-h-[400px] pr-1 scrollbar-thin">
               {loadingReflections ? (
                 <div className="skeleton h-12 w-full" />
               ) : reflections.length === 0 ? (
-                <p className="text-slate-500 text-xs text-center py-10">No reflective lessons found.</p>
+                <p className="text-slate-400 text-xs text-center py-12">No reflections recorded.</p>
               ) : (
                 reflections.map((r, i) => (
-                  <div key={i} className="p-3 bg-slate-950/40 border border-white/[0.03] rounded-lg space-y-1">
-                    <span className="text-xs font-semibold text-slate-200 block">{r.lesson || r.insight}</span>
-                    <span className="text-[10px] text-slate-500 font-mono block">Accuracy: {r.accuracy_delta || '+0.12'}</span>
+                  <div key={i} className="p-3 bg-slate-50/80 border border-slate-100 rounded-xl space-y-1">
+                    <span className="text-xs font-bold text-slate-700 block leading-tight">{r.lesson || r.insight}</span>
+                    <span className="text-[9.5px] font-mono text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100/50 mt-1 inline-block">
+                      Accuracy Delta: {r.accuracy_delta || '+0.12'}
+                    </span>
                   </div>
                 ))
               )}
             </div>
-          </div>
+          </GlassCard>
 
           {/* Procedures catalog */}
-          <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <Layers className="h-4.5 w-4.5 text-violet-400" />
-              <h2 className="text-sm font-semibold text-slate-200">Stored Procedures</h2>
+          <GlassCard className="space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+              <Layers className="h-4.5 w-4.5 text-indigo-500" />
+              <h2 className="text-sm font-bold text-slate-800">Procedures templates</h2>
             </div>
 
-            <div className="space-y-3 overflow-y-auto max-h-[400px]">
+            <div className="space-y-3 overflow-y-auto max-h-[400px] pr-1 scrollbar-thin">
               {loadingProcedures ? (
                 <div className="skeleton h-12 w-full" />
               ) : procedures.length === 0 ? (
-                <p className="text-slate-500 text-xs text-center py-10">No stored procedures present.</p>
+                <p className="text-slate-400 text-xs text-center py-12">No stored procedures templates.</p>
               ) : (
                 procedures.map((p, i) => (
-                  <div key={i} className="p-3 bg-slate-950/40 border border-white/[0.03] rounded-lg">
-                    <span className="text-xs font-semibold text-slate-200 block">{p.template_name || p.name}</span>
-                    <span className="text-[10px] text-slate-500 block mt-1">Steps: {Array.isArray(p.steps) ? p.steps.length : 3}</span>
+                  <div key={i} className="p-3 bg-slate-50/80 border border-slate-100 rounded-xl">
+                    <span className="text-xs font-bold text-slate-700 block leading-tight">{p.template_name || p.name}</span>
+                    <span className="text-[10px] text-slate-400 block mt-1">Steps: {Array.isArray(p.steps) ? p.steps.length : 3}</span>
                   </div>
                 ))
               )}
             </div>
-          </div>
+          </GlassCard>
         </div>
       )}
 
       {activeTab === 'runtime' && (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Step Execution Controls */}
-          <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 space-y-4 xl:col-span-1">
-            <h2 className="text-sm font-semibold text-slate-200">Execution coordinator</h2>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* Step Controls */}
+          <GlassCard className="space-y-4 xl:col-span-1">
+            <h2 className="text-sm font-bold text-slate-800">Execution coordinator</h2>
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Execution ID</label>
-                <input
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Execution ID</label>
+                <GlassInput
                   value={executionId}
                   onChange={(e) => setExecutionId(e.target.value)}
-                  className="w-full bg-slate-950 border border-white/[0.08] text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-violet-500 text-slate-100"
                 />
               </div>
 
-              <button
+              <AnimatedButton
                 onClick={handleRunStep}
                 disabled={stepMutation.isPending}
-                className="w-full btn btn-primary flex justify-center items-center gap-1.5 py-2 text-xs"
+                variant="primary"
+                className="w-full py-2.5"
               >
                 <Play className="h-4 w-4" /> Trigger Next Step
-              </button>
+              </AnimatedButton>
             </div>
-          </div>
+          </GlassCard>
 
-          {/* Checkpoint / History Trace */}
-          <div className="bg-slate-950/60 border border-white/[0.06] rounded-xl p-5 xl:col-span-2">
-            <h2 className="text-sm font-semibold text-slate-200 mb-3">Runtime Checkpoints Logs</h2>
-            <div className="bg-black/40 border border-white/[0.03] p-4 rounded-lg font-mono text-[11px] text-slate-400 h-64 overflow-y-auto">
-              <div>[SYSTEM] Active runtime listening for execution_id: {executionId}</div>
-              <div>[SYSTEM] Checkpoint verified. No active errors reported.</div>
+          {/* Checkpoint logs */}
+          <GlassCard className="xl:col-span-2 p-5 flex flex-col h-[320px]">
+            <h2 className="text-sm font-bold text-slate-800 mb-3">Engine Checkpoints Trace</h2>
+            <div className="flex-1 bg-slate-950 border border-slate-900 p-4 rounded-xl font-mono text-[11px] text-slate-300 overflow-y-auto shadow-inner scrollbar-thin">
+              <div>[SYSTEM] Active runtime listening for execution: {executionId}</div>
+              <div>[SYSTEM] Checkpoint verified. Operational state index is clear.</div>
             </div>
-          </div>
+          </GlassCard>
         </div>
       )}
 
       {activeTab === 'missions' && (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Launch Mission */}
-          <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 space-y-4 xl:col-span-1">
-            <h2 className="text-sm font-semibold text-slate-200">Launch New Agent Mission</h2>
+          <GlassCard className="space-y-4 xl:col-span-1">
+            <h2 className="text-sm font-bold text-slate-800">Launch Autonomous Mission</h2>
             <form onSubmit={handleLaunchMission} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Associated Goal ID</label>
-                <input
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Associated Goal ID</label>
+                <GlassInput
                   value={goalId}
                   onChange={(e) => setGoalId(e.target.value)}
-                  className="w-full bg-slate-950 border border-white/[0.08] text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-violet-500 text-slate-100"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Mission Objective</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Mission Objective</label>
                 <textarea
                   value={objective}
                   onChange={(e) => setObjective(e.target.value)}
-                  placeholder="e.g. Scan all links and find accessibility violations..."
+                  placeholder="Explain mission tasks..."
                   rows={3}
-                  className="w-full bg-slate-950 border border-white/[0.08] text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-violet-500 text-slate-100 placeholder:text-slate-600 resize-none"
+                  className="w-full bg-white/50 border border-slate-200 text-slate-800 text-xs px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 resize-none"
                 />
               </div>
 
-              <button
+              <AnimatedButton
                 type="submit"
                 disabled={missionMutation.isPending}
-                className="w-full btn btn-primary flex justify-center items-center gap-1.5 py-2 text-xs"
+                variant="primary"
+                className="w-full py-2.5"
               >
                 <Send className="h-3.5 w-3.5" /> Launch Mission
-              </button>
+              </AnimatedButton>
             </form>
-          </div>
+          </GlassCard>
 
-          {/* Blackboard / message board */}
-          <div className="bg-slate-950/60 border border-white/[0.06] rounded-xl p-5 xl:col-span-2 flex flex-col h-[340px]">
-            <h2 className="text-sm font-semibold text-slate-200 mb-3">Multi-Agent Coordination Blackboard</h2>
-            <div className="flex-1 bg-black/40 border border-white/[0.03] p-4 rounded-lg font-mono text-[11px] text-slate-400 overflow-y-auto space-y-1.5 scrollbar-thin">
+          {/* Blackboard messages */}
+          <GlassCard className="xl:col-span-2 flex flex-col h-[340px] p-5">
+            <h2 className="text-sm font-bold text-slate-800 mb-3">Multi-Agent Coordination Blackboard</h2>
+            <div className="flex-1 bg-slate-950 border border-slate-900 p-4 rounded-xl font-mono text-[11px] text-slate-300 overflow-y-auto scrollbar-thin shadow-inner">
               <div className="text-slate-500 text-center py-20">
-                No active missions board logs. Launch a mission to monitor logs.
+                Blackboard idle. Launch an agentic mission to stream blackboard state.
               </div>
             </div>
-          </div>
+          </GlassCard>
         </div>
       )}
 
       {activeTab === 'learning' && (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Provider Scores rankings */}
-          <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 space-y-4 xl:col-span-1">
-            <h2 className="text-sm font-semibold text-slate-200">Model Providers Reliability</h2>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* Provider Scores */}
+          <GlassCard className="space-y-4 xl:col-span-1">
+            <h2 className="text-sm font-bold text-slate-800">Model Providers Reliability</h2>
             <div className="space-y-3">
               {providerScores.length === 0 ? (
                 <>
-                  <div className="flex justify-between items-center p-3 bg-slate-950/40 rounded-lg">
-                    <span className="text-xs text-slate-300">OpenAI GPT-4o</span>
-                    <span className="text-xs font-bold text-emerald-400">98.4%</span>
+                  <div className="flex justify-between items-center p-3 bg-slate-50/70 border border-slate-100 rounded-xl shadow-sm">
+                    <span className="text-xs font-bold text-slate-700">OpenAI GPT-4o</span>
+                    <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-md">98.4%</span>
                   </div>
-                  <div className="flex justify-between items-center p-3 bg-slate-950/40 rounded-lg">
-                    <span className="text-xs text-slate-300">Anthropic Claude 3.5 Sonnet</span>
-                    <span className="text-xs font-bold text-emerald-400">97.8%</span>
+                  <div className="flex justify-between items-center p-3 bg-slate-50/70 border border-slate-100 rounded-xl shadow-sm">
+                    <span className="text-xs font-bold text-slate-700">Anthropic Claude 3.5 Sonnet</span>
+                    <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-md">97.8%</span>
                   </div>
-                  <div className="flex justify-between items-center p-3 bg-slate-950/40 rounded-lg">
-                    <span className="text-xs text-slate-300">Google Gemini 1.5 Pro</span>
-                    <span className="text-xs font-bold text-violet-400">96.5%</span>
+                  <div className="flex justify-between items-center p-3 bg-slate-50/70 border border-slate-100 rounded-xl shadow-sm">
+                    <span className="text-xs font-bold text-slate-700">Google Gemini 1.5 Pro</span>
+                    <span className="text-xs font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-md">96.5%</span>
                   </div>
                 </>
               ) : (
                 providerScores.map((ps: any, i: number) => (
-                  <div key={i} className="flex justify-between items-center p-3 bg-slate-950/40 rounded-lg">
-                    <span className="text-xs text-slate-300">{String(ps.provider || ps.name)}</span>
-                    <span className="text-xs font-bold text-emerald-400">{String(ps.score || ps.reliability)}</span>
+                  <div key={i} className="flex justify-between items-center p-3 bg-slate-50/70 border border-slate-100 rounded-xl shadow-sm">
+                    <span className="text-xs font-bold text-slate-700">{String(ps.provider || ps.name)}</span>
+                    <span className="text-xs font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-md">{String(ps.score || ps.reliability)}</span>
                   </div>
                 ))
               )}
             </div>
-          </div>
+          </GlassCard>
 
-          {/* Tool Success rates charts */}
-          <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 xl:col-span-2 space-y-4">
-            <h2 className="text-sm font-semibold text-slate-200">Tool Executions Reliability</h2>
+          {/* Tool chart */}
+          <GlassCard className="xl:col-span-2 space-y-4">
+            <h2 className="text-sm font-bold text-slate-800">Tool Executions Success Rate</h2>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={toolChartData.length > 0 ? toolChartData : [
                   { name: 'Crawl', success: 0.95 },
-                  { name: 'Check', success: 0.92 },
+                  { name: 'Check', source: 0.92 },
                   { name: 'FixGen', success: 0.88 },
                   { name: 'Publish', success: 0.97 },
                 ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
-                  <YAxis stroke="#64748b" fontSize={11} />
-                  <Tooltip contentStyle={{ backgroundColor: '#0f1219', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '8px' }} />
-                  <Bar dataKey="success" fill="#7c5cfc" radius={[4, 4, 0, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.03)" />
+                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} axisLine={false} tickLine={false} />
+                  <YAxis stroke="#94a3b8" fontSize={11} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid rgba(0,0,0,0.06)', borderRadius: '12px' }} />
+                  <Bar dataKey="success" fill="#6366f1" radius={[5, 5, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </GlassCard>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

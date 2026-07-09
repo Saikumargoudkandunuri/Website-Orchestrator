@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { coreApi, CrawlSummary, CrawlRequest } from '../api';
 import { Play, RotateCcw, AlertCircle, FileText, CheckCircle2, History, ServerCrash } from 'lucide-react';
+import { GlassCard, AnimatedButton, GlassInput, StatusBadge } from '../components/PremiumUI';
+import { motion } from 'framer-motion';
 
 export default function CrawlerPage() {
   const queryClient = useQueryClient();
@@ -49,46 +51,51 @@ export default function CrawlerPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="space-y-8"
+    >
       {/* Page Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-50 tracking-tight">Active Crawler Engine</h1>
-          <p className="text-sm text-slate-400">Discover links, analyze source structures, detect errors, and check response headers</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Active Crawler Engine</h1>
+          <p className="text-sm text-slate-500 mt-1">Discover links, analyze source structures, detect errors, and verify responsive codes</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* Crawler Input Card */}
-        <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl p-5 space-y-4 xl:col-span-1">
-          <h2 className="text-sm font-semibold text-slate-200">Start Crawl Job</h2>
+        <GlassCard className="space-y-4 xl:col-span-1">
+          <h2 className="text-sm font-bold text-slate-800">Start Crawl Job</h2>
           <form onSubmit={handleStartCrawl} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Target Start URL</label>
-              <input
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Target Start URL</label>
+              <GlassInput
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://example.com"
-                className="w-full bg-slate-950 border border-white/[0.08] text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-violet-500 text-slate-100"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Max Scanned Pages</label>
-              <input
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Max Scanned Pages</label>
+              <GlassInput
                 type="number"
                 min={1}
                 max={500}
                 value={maxPages}
                 onChange={(e) => setMaxPages(Number(e.target.value))}
-                className="w-24 bg-slate-950 border border-white/[0.08] text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-violet-500 text-slate-100"
+                style={{ width: '100px' }}
               />
             </div>
 
-            <button
+            <AnimatedButton
               type="submit"
               disabled={crawlMutation.isPending}
-              className="w-full btn btn-primary flex justify-center items-center gap-1.5 py-2 text-xs"
+              variant="primary"
+              className="w-full py-2.5"
             >
               {crawlMutation.isPending ? (
                 <>
@@ -100,47 +107,47 @@ export default function CrawlerPage() {
                   <Play className="h-3.5 w-3.5" /> Start Crawl Job
                 </>
               )}
-            </button>
+            </AnimatedButton>
           </form>
 
-          {/* Quick results if available */}
+          {/* Quick results */}
           {crawlMutation.data && (
-            <div className="p-3 bg-emerald-950/20 border border-emerald-800/40 rounded-lg space-y-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Job Complete</span>
-              <div className="grid grid-cols-3 gap-2 text-center text-slate-200 mt-1">
+            <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-2 mt-4">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-600">Job Complete</span>
+              <div className="grid grid-cols-3 gap-2 text-center text-slate-700 mt-2">
                 <div>
-                  <div className="text-xs text-slate-400">Scanned</div>
-                  <div className="text-sm font-bold">{crawlMutation.data.pages_crawled}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold uppercase">Scanned</div>
+                  <div className="text-base font-extrabold text-slate-800">{crawlMutation.data.pages_crawled}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-slate-400">Issues</div>
-                  <div className="text-sm font-bold text-rose-400">{crawlMutation.data.issues_found}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold uppercase">Issues</div>
+                  <div className="text-base font-extrabold text-rose-500">{crawlMutation.data.issues_found}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-slate-400">Fixes</div>
-                  <div className="text-sm font-bold text-emerald-400">{crawlMutation.data.fixes_generated}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold uppercase">Fixes</div>
+                  <div className="text-base font-extrabold text-emerald-600">{crawlMutation.data.fixes_generated}</div>
                 </div>
               </div>
             </div>
           )}
-        </div>
+        </GlassCard>
 
-        {/* Live console logging / queue output */}
-        <div className="bg-slate-950/60 border border-white/[0.06] rounded-xl p-5 xl:col-span-2 flex flex-col h-[320px]">
+        {/* Live console logging */}
+        <GlassCard className="xl:col-span-2 flex flex-col h-[340px] p-5">
           <div className="flex justify-between items-center mb-3">
-            <span className="text-xs font-semibold text-slate-300">Live Engine Outputs</span>
+            <span className="text-xs font-bold text-slate-700">Crawler Output Terminal</span>
             <button
               onClick={() => setCrawlLogs([])}
-              className="text-[10px] text-slate-500 hover:text-slate-300 flex items-center gap-1"
+              className="text-[10px] font-bold text-slate-400 hover:text-indigo-500 flex items-center gap-1 transition-colors"
             >
-              <RotateCcw className="h-3 w-3" /> Clear Console
+              <RotateCcw className="h-3.5 w-3.5" /> Clear Console
             </button>
           </div>
 
-          <div className="flex-1 bg-black/40 border border-white/[0.03] p-4 rounded-lg font-mono text-[11px] text-slate-300 overflow-y-auto space-y-1.5 scrollbar-thin">
+          <div className="flex-1 bg-slate-950 border border-slate-900 p-4 rounded-xl font-mono text-[11px] text-slate-300 overflow-y-auto space-y-1.5 scrollbar-thin shadow-inner">
             {crawlLogs.length === 0 ? (
-              <div className="text-slate-600 text-center py-20">
-                Console idle. Submit a crawl job to view engine logs in real-time.
+              <div className="text-slate-500 text-center py-24">
+                Console idle. Run a crawl job to stream logs.
               </div>
             ) : (
               crawlLogs.map((log, i) => (
@@ -150,13 +157,13 @@ export default function CrawlerPage() {
               ))
             )}
           </div>
-        </div>
+        </GlassCard>
       </div>
 
-      {/* Crawl Run History list */}
-      <div className="bg-slate-900/40 border border-white/[0.06] rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-white/[0.06]">
-          <h2 className="text-sm font-semibold text-slate-200">Execution Runs Library</h2>
+      {/* Crawl Run History */}
+      <GlassCard className="p-0 overflow-hidden">
+        <div className="p-5 border-b border-slate-100">
+          <h2 className="text-sm font-bold text-slate-800">Job Execution History</h2>
         </div>
 
         <table className="data-table">
@@ -171,19 +178,17 @@ export default function CrawlerPage() {
           <tbody>
             {mockHistory.map((h) => (
               <tr key={h.id}>
-                <td className="mono text-xs text-slate-300">{h.url}</td>
+                <td className="mono text-xs text-indigo-600 font-semibold">{h.url}</td>
                 <td>
-                  <span className={`badge ${h.status === 'Success' ? 'badge-success' : 'badge-error'}`}>
-                    {h.status}
-                  </span>
+                  <StatusBadge status={h.status} />
                 </td>
-                <td className="text-slate-100 font-semibold">{h.pages}</td>
-                <td className="text-xs text-slate-500">{h.date}</td>
+                <td className="text-slate-900 font-bold">{h.pages}</td>
+                <td className="text-xs text-slate-400">{h.date}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
-    </div>
+      </GlassCard>
+    </motion.div>
   );
 }
