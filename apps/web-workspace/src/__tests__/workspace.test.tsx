@@ -1,3 +1,4 @@
+import React from "react";
 import { describe, test, expect, vi } from "vitest";
 
 vi.mock("react", () => {
@@ -26,7 +27,7 @@ describe("AI Workspace Components", () => {
       nodes,
       onNodeDrag: dragSpy,
       presenceCursors: presence,
-    });
+    }) as any;
 
     expect(viewport.props.className).toContain("canvas-viewport");
     expect(viewport.props.children).toBeDefined();
@@ -42,8 +43,9 @@ describe("AI Workspace Components", () => {
     const palette = WorkspaceCommandPalette({
       options,
       onSelect: selectSpy,
-    });
+    }) as any;
 
     expect(palette.props.className).toContain("command-palette");
   });
 });
+
