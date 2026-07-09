@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { coreApi, agenticApi, enterpriseApi, Issue, SuggestedFix, AuditEntry } from '../api';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AlertTriangle, CheckCircle, Clock, Shield, Activity, Target, DollarSign } from 'lucide-react';
-import { GlassCard, GlassCard3D, MetricCard, StatusBadge, TimelineItem } from '../components/PremiumUI';
+import { GlassCard, GlassCard3D, MetricCard, StatusBadge, TimelineItem, AISummaryPanel } from '../components/PremiumUI';
 import { motion } from 'framer-motion';
 
 const mockTrafficData = [
@@ -79,6 +79,26 @@ export default function DashboardPage() {
             Control Plane Active
           </span>
         </div>
+      </motion.div>
+
+      {/* AI Summary Panel */}
+      <motion.div variants={itemVariants}>
+        <AISummaryPanel
+          insights={[
+            "Crawled 124 pages successfully; SEO score is stable at 87% with minor index anomalies.",
+            "Detected 4 critical/high violations requiring immediate developer approval in the AI Fixes queue.",
+            "Active agentic objectives are running smoothly with Anthropic Claude 3.5 Sonnet showing the highest execution stability."
+          ]}
+          metrics={[
+            { label: "Expected Fix Impact", value: "+12.4%", trend: "SEO Traffic Increase" },
+            { label: "AI Code Confidence", value: "98.2%", trend: "Verified locally" }
+          ]}
+          thoughts={[
+            "Loading active crawler logs from WP target...",
+            "Validating structure matches using local HTML semantic rules...",
+            "Generating suggested patch diffs for review queue..."
+          ]}
+        />
       </motion.div>
 
       {/* Metric Cards Grid */}

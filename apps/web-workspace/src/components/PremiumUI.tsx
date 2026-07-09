@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { motion, HTMLMotionProps } from 'framer-motion';
+import { motion, HTMLMotionProps, AnimatePresence } from 'framer-motion';
+import { Sparkles, ChevronDown, CheckCircle } from 'lucide-react';
 
 // Helper: Mouse tracking lighting effect
 export const useMouseSpotlight = () => {
@@ -145,7 +146,7 @@ export const MetricCard: React.FC<{
 
       <div className="flex items-center gap-2 mt-4">
         {change && (
-          <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+          <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
             changeType === 'positive' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
             changeType === 'negative' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
             'bg-slate-50 text-slate-600 border border-slate-100'
@@ -254,5 +255,93 @@ export const TimelineItem: React.FC<{
         )}
       </div>
     </div>
+  );
+};
+
+// ─── AI Executive Summary Panel (Renders at start of pages) ───
+export const AISummaryPanel: React.FC<{
+  insights: string[];
+  metrics?: { label: string; value: string; trend?: string }[];
+  thoughts?: string[];
+  actions?: React.ReactNode;
+}> = ({ insights, metrics = [], thoughts = [], actions }) => {
+  const [showThoughts, setShowThoughts] = useState(false);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 350, damping: 25 }}
+      className="relative overflow-hidden border border-white/60 bg-gradient-to-br from-indigo-50/50 via-purple-50/40 to-pink-50/20 backdrop-blur-3xl rounded-2xl p-6 shadow-md mb-8"
+    >
+      <div className="absolute -right-20 -top-20 h-48 w-48 rounded-full bg-indigo-400/5 blur-3xl" />
+      <div className="relative z-10 space-y-5">
+        {/* Title */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg">
+              <Sparkles className="h-4.5 w-4.5" />
+            </div>
+            <span className="text-xs font-black text-slate-800 uppercase tracking-widest">AI Executive Summary</span>
+          </div>
+          {actions && <div className="flex items-center gap-2">{actions}</div>}
+        </div>
+
+        {/* Core Insights */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Key Findings</span>
+            <ul className="space-y-2">
+              {insights.map((insight, i) => (
+                <li key={i} className="text-xs font-semibold text-slate-700 flex items-start gap-2 leading-relaxed">
+                  <CheckCircle className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <span>{insight}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Core metrics details */}
+          {metrics.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              {metrics.map((m, i) => (
+                <div key={i} className="p-3 bg-white/60 border border-slate-200/50 rounded-xl shadow-sm">
+                  <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">{m.label}</span>
+                  <div className="text-xl font-black text-slate-800 mt-1">{m.value}</div>
+                  {m.trend && <span className="text-[10px] font-bold text-emerald-600 mt-0.5 block">{m.trend}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Accordion thoughts */}
+        {thoughts.length > 0 && (
+          <div className="border-t border-slate-200/50 pt-4">
+            <button
+              onClick={() => setShowThoughts(!showThoughts)}
+              className="flex items-center gap-1.5 text-[10px] font-extrabold text-slate-400 hover:text-slate-600 uppercase tracking-wider bg-transparent border-none cursor-pointer outline-none"
+            >
+              <span>AI Thought Process</span>
+              <ChevronDown className={`h-3 w-3 transform transition-transform duration-300 ${showThoughts ? 'rotate-180' : ''}`} />
+            </button>
+            <AnimatePresence>
+              {showThoughts && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden font-mono text-[10px] text-slate-500 bg-slate-50 border border-slate-100 rounded-xl p-3.5 mt-2.5 leading-relaxed space-y-1"
+                >
+                  {thoughts.map((t, idx) => (
+                    <div key={idx}>⚙️ {t}</div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
+    </motion.div>
   );
 };

@@ -4,7 +4,7 @@ import ReactFlow, { Background, Controls } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { agenticApi } from '../api';
 import { Search, Database } from 'lucide-react';
-import { GlassCard, AnimatedButton, GlassInput } from '../components/PremiumUI';
+import { GlassCard, AnimatedButton, AISummaryPanel } from '../components/PremiumUI';
 import { motion } from 'framer-motion';
 
 const initialNodes = [
@@ -35,10 +35,20 @@ const initialNodes = [
 ];
 
 const initialEdges = [
-  { id: 'e1', source: 'org', target: 'wp', style: { stroke: '#6366f1', strokeWidth: 2 } },
-  { id: 'e2', source: 'wp', target: 'c1', style: { stroke: '#6366f1', strokeWidth: 2 } },
-  { id: 'e3', source: 'c1', target: 'i1', style: { stroke: '#6366f1', strokeWidth: 2 } },
+  { id: 'e1', source: 'org', target: 'wp', style: { stroke: '#6366f1', strokeWidth: 2.5 } },
+  { id: 'e2', source: 'wp', target: 'c1', style: { stroke: '#6366f1', strokeWidth: 2.5 } },
+  { id: 'e3', source: 'c1', target: 'i1', style: { stroke: '#6366f1', strokeWidth: 2.5 } },
 ];
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.08 } }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15, scale: 0.98 },
+  show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 350, damping: 25 } }
+};
 
 export default function KnowledgeGraphPage() {
   const [query, setQuery] = useState('');
@@ -57,57 +67,79 @@ export default function KnowledgeGraphPage() {
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
       className="space-y-8"
     >
-      <div className="flex justify-between items-center">
+      <motion.div variants={itemVariants} className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Enterprise Knowledge Graph</h1>
-          <p className="text-sm text-slate-500 mt-1">Trace reasoning links, semantic facts, and entity structures discovered by autonomous agent scans</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Enterprise Knowledge Graph</h1>
+          <p className="text-sm text-slate-500 font-semibold mt-1">Trace reasoning links, semantic facts, and entity structures discovered by autonomous agent scans</p>
         </div>
-      </div>
+      </motion.div>
+
+      {/* AI Summary Panel */}
+      <motion.div variants={itemVariants}>
+        <AISummaryPanel
+          insights={[
+            "Discovered semantic entity associations linking corporate organizations to sitemaps properties.",
+            "Crawl logs trace execution anomalies back to structural page nodes automatically.",
+            "Fact-retrieval indexes confirm perfect semantic coherence rating."
+          ]}
+          metrics={[
+            { label: "Graph Density", value: "Optimal", trend: "4 key nodes mapped" },
+            { label: "Fact Indexing Coherence", value: "98.6%", trend: "High accuracy facts link" }
+          ]}
+          thoughts={[
+            "Loading index reasoning structures...",
+            "Tracing parent-child node boundaries...",
+            "Validating workspace anchor properties..."
+          ]}
+        />
+      </motion.div>
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
         {/* Search Panel */}
-        <GlassCard className="space-y-4 xl:col-span-1">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Database className="h-4.5 w-4.5 text-indigo-500" />
-            <h2 className="text-sm font-bold text-slate-800">Semantic Search</h2>
-          </div>
-
-          <form onSubmit={handleSearch} className="space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
-              <input
-                value={query}
-                onChange={(e) => { setQuery(e.target.value); setSearchTriggered(false); }}
-                placeholder="Query semantic memory..."
-                className="w-full bg-white/50 border border-slate-200 text-slate-800 text-xs pl-10 pr-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500"
-              />
+        <motion.div variants={itemVariants} className="xl:col-span-1">
+          <GlassCard className="space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+              <Database className="h-4.5 w-4.5 text-indigo-500" />
+              <h2 className="text-sm font-bold text-slate-800">Semantic Search</h2>
             </div>
-            <AnimatedButton type="submit" variant="primary" className="w-full py-2.5">
-              Search Memory
-            </AnimatedButton>
-          </form>
 
-          {/* Results list */}
-          <div className="space-y-2 mt-4 overflow-y-auto max-h-[300px] scrollbar-thin">
-            {isLoading && <div className="skeleton h-10 w-full" />}
-            {searchTriggered && searchResults.length === 0 && !isLoading && (
-              <p className="text-slate-400 text-[11px] text-center font-semibold">No matching entities found in memory.</p>
-            )}
-            {searchResults.map((item, idx) => (
-              <div key={idx} className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl">
-                <span className="text-xs font-bold text-slate-700 block leading-tight">{item.fact || item.label || JSON.stringify(item)}</span>
+            <form onSubmit={handleSearch} className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+                <input
+                  value={query}
+                  onChange={(e) => { setQuery(e.target.value); setSearchTriggered(false); }}
+                  placeholder="Query semantic memory..."
+                  className="w-full bg-white/50 border border-slate-200 text-slate-800 text-xs pl-10 pr-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 font-semibold"
+                />
               </div>
-            ))}
-          </div>
-        </GlassCard>
+              <AnimatedButton type="submit" variant="primary" className="w-full py-3">
+                Search Memory
+              </AnimatedButton>
+            </form>
+
+            {/* Results list */}
+            <div className="space-y-2 mt-4 overflow-y-auto max-h-[300px] scrollbar-thin">
+              {isLoading && <div className="skeleton h-10 w-full" />}
+              {searchTriggered && searchResults.length === 0 && !isLoading && (
+                <p className="text-slate-400 text-[11px] text-center font-semibold">No matching entities found in memory.</p>
+              )}
+              {searchResults.map((item, idx) => (
+                <div key={idx} className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl">
+                  <span className="text-xs font-bold text-slate-700 block leading-tight">{item.fact || item.label || JSON.stringify(item)}</span>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+        </motion.div>
 
         {/* Visual Graph View */}
-        <div className="xl:col-span-3 bg-white/60 border border-slate-200/80 rounded-2xl h-[500px] overflow-hidden relative shadow-md">
+        <motion.div variants={itemVariants} className="xl:col-span-3 bg-white/60 border border-slate-200/80 rounded-2xl h-[500px] overflow-hidden relative shadow-md">
           <div className="absolute top-4 left-4 z-10 text-[10px] bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-slate-600 font-bold shadow-sm">
             Reasoning Links Canvas
           </div>
@@ -119,7 +151,7 @@ export default function KnowledgeGraphPage() {
             <Background color="rgba(99,102,241,0.06)" gap={16} />
             <Controls />
           </ReactFlow>
-        </div>
+        </motion.div>
       </div>
     </motion.div>
   );
