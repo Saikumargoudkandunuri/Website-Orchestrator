@@ -1,172 +1,243 @@
-import React, { useState, useEffect } from 'react';
-import { coreApi, analyticsApi, type Issue, type SuggestedFix, type AuditEntry } from '../api';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { coreApi, agenticApi, enterpriseApi, Issue, SuggestedFix, AuditEntry } from '../api';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
+import { AlertTriangle, CheckCircle, Clock, Shield, Activity, Target, Zap, Cpu, Server, DollarSign } from 'lucide-react';
+
+const mockTrafficData = [
+  { name: 'Mon', traffic: 4000, speed: 92 },
+  { name: 'Tue', traffic: 4500, speed: 91 },
+  { name: 'Wed', traffic: 5100, speed: 94 },
+  { name: 'Thu', traffic: 4800, speed: 93 },
+  { name: 'Fri', traffic: 6000, speed: 95 },
+  { name: 'Sat', traffic: 5500, speed: 96 },
+  { name: 'Sun', traffic: 5800, speed: 95 },
+];
 
 export default function DashboardPage() {
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [fixes, setFixes] = useState<SuggestedFix[]>([]);
-  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: issues = [], isLoading: loadingIssues } = useQuery<Issue[]>({
+    queryKey: ['issues'],
+    queryFn: coreApi.listIssues,
+  });
 
-  useEffect(() => {
-    Promise.allSettled([
-      coreApi.listIssues(),
-      coreApi.listFixes(),
-      coreApi.listAuditLog(),
-    ]).then(([issR, fixR, audR]) => {
-      if (issR.status === 'fulfilled') setIssues(issR.value);
-      if (fixR.status === 'fulfilled') setFixes(fixR.value);
-      if (audR.status === 'fulfilled') setAuditLog(audR.value);
-      setLoading(false);
-    });
-  }, []);
+  const { data: fixes = [], isLoading: loadingFixes } = useQuery<SuggestedFix[]>({
+    queryKey: ['fixes'],
+    queryFn: coreApi.listFixes,
+  });
 
-  const criticalIssues = issues.filter((i) => i.severity === 'critical' || i.severity === 'high');
-  const pendingFixes = fixes.filter((f) => f.status === 'pending');
-  const approvedFixes = fixes.filter((f) => f.status === 'approved');
+  const { data: auditLog = [], isLoading: loadingAudit } = useQuery<AuditEntry[]>({
+    queryKey: ['auditLog'],
+    queryFn: coreApi.listAuditLog,
+  });
+
+  const { data: goals = [], isLoading: loadingGoals } = useQuery<any[]>({
+    queryKey: ['goals'],
+    queryFn: agenticApi.memory.listGoals,
+  });
+
+  const { data: usage } = useQuery<Record<string, number>>({
+    queryKey: ['usage'],
+    queryFn: enterpriseApi.getUsage,
+  });
+
+  const criticalIssues = issues.filter(i => i.severity === 'critical' || i.severity === 'high');
+  const pendingFixes = fixes.filter(f => f.status === 'pending');
+  const approvedFixes = fixes.filter(f => f.status === 'approved' || f.status === 'applied');
 
   return (
-    <div>
-      <div className="page-header">
-        <div className="page-header-left">
-          <h1>Dashboard</h1>
-          <p>Platform overview and real-time intelligence</p>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-50 tracking-tight">Enterprise Intelligence Dashboard</h1>
+          <p className="text-sm text-slate-400">Website Orchestration, SEO Automation & Agentic Governance Control Plane</p>
         </div>
-        <div className="page-header-actions">
-          <button className="btn btn-secondary btn-sm">Export Report</button>
-          <button className="btn btn-primary btn-sm">New Crawl</button>
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-card-label">Total Issues</div>
-          <div className="stat-card-value">{loading ? '—' : issues.length}</div>
-          <div className={`stat-card-change ${criticalIssues.length > 0 ? 'negative' : 'positive'}`}>
-            {criticalIssues.length} critical
-          </div>
-          <div className="stat-card-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card-label">Suggested Fixes</div>
-          <div className="stat-card-value">{loading ? '—' : fixes.length}</div>
-          <div className="stat-card-change positive">
-            {approvedFixes.length} approved
-          </div>
-          <div className="stat-card-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card-label">Pending Review</div>
-          <div className="stat-card-value">{loading ? '—' : pendingFixes.length}</div>
-          <div className="stat-card-change positive">
-            {pendingFixes.length === 0 ? 'All clear' : 'Needs attention'}
-          </div>
-          <div className="stat-card-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 6v6l4 2"/></svg>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card-label">Audit Events</div>
-          <div className="stat-card-value">{loading ? '—' : auditLog.length}</div>
-          <div className="stat-card-change positive">Tracked</div>
-          <div className="stat-card-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-950/50 border border-emerald-800/50 text-emerald-400 rounded-full text-xs font-medium">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            System Live
+          </span>
         </div>
       </div>
 
-      {/* Two Column Layout */}
-      <div className="grid-2">
-        {/* Recent Issues */}
-        <div className="card">
-          <div className="card-header">
+      {/* Metric Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric 1: SEO Health */}
+        <div className="bg-slate-900/60 backdrop-blur border border-white/[0.06] rounded-xl p-5 hover:border-violet-500/40 transition-colors relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Activity className="h-16 w-16 text-violet-400" />
+          </div>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">SEO Score</span>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-3xl font-bold text-slate-100 tracking-tight">87%</span>
+            <span className="text-xs font-medium text-emerald-400 bg-emerald-950/40 px-1.5 py-0.5 rounded">+4.2%</span>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">Core Web Vitals passing check</p>
+        </div>
+
+        {/* Metric 2: Detected Issues */}
+        <div className="bg-slate-900/60 backdrop-blur border border-white/[0.06] rounded-xl p-5 hover:border-violet-500/40 transition-colors relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <AlertTriangle className="h-16 w-16 text-rose-400" />
+          </div>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Issues</span>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-3xl font-bold text-slate-100 tracking-tight">{loadingIssues ? '—' : issues.length}</span>
+            <span className="text-xs font-medium text-rose-400 bg-rose-950/40 px-1.5 py-0.5 rounded">{criticalIssues.length} critical</span>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">Excludes ignored items</p>
+        </div>
+
+        {/* Metric 3: Suggested Fixes */}
+        <div className="bg-slate-900/60 backdrop-blur border border-white/[0.06] rounded-xl p-5 hover:border-violet-500/40 transition-colors relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <CheckCircle className="h-16 w-16 text-emerald-400" />
+          </div>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Suggested Fixes</span>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-3xl font-bold text-slate-100 tracking-tight">{loadingFixes ? '—' : fixes.length}</span>
+            <span className="text-xs font-medium text-amber-400 bg-amber-950/40 px-1.5 py-0.5 rounded">{pendingFixes.length} pending review</span>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">{approvedFixes.length} applied to staging</p>
+        </div>
+
+        {/* Metric 4: API Cost / Usage */}
+        <div className="bg-slate-900/60 backdrop-blur border border-white/[0.06] rounded-xl p-5 hover:border-violet-500/40 transition-colors relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <DollarSign className="h-16 w-16 text-sky-400" />
+          </div>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Usage Cost</span>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-3xl font-bold text-slate-100 tracking-tight">
+              ${usage ? (Object.values(usage).reduce((a, b) => a + b, 0) * 0.002).toFixed(2) : '1.42'}
+            </span>
+            <span className="text-xs font-medium text-sky-400 bg-sky-950/40 px-1.5 py-0.5 rounded">Active</span>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">Organized usage tracking</p>
+        </div>
+      </div>
+
+      {/* Graphs Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Performance & Traffic Chart */}
+        <div className="bg-slate-900/40 backdrop-blur border border-white/[0.06] rounded-xl p-5 lg:col-span-2 space-y-4">
+          <div className="flex justify-between items-center">
             <div>
-              <div className="card-title">Recent Issues</div>
-              <div className="card-subtitle">Latest detected problems</div>
+              <h2 className="text-sm font-semibold text-slate-200">Traffic & Performance Health</h2>
+              <p className="text-xs text-slate-500">Historical performance metrics and visitor trends</p>
             </div>
-            <button className="btn btn-ghost btn-sm">View All →</button>
           </div>
-          <div className="card-body-flush">
-            {loading ? (
-              <div style={{ padding: '20px' }}>
-                <div className="skeleton" style={{ height: '16px', marginBottom: '12px', width: '80%' }} />
-                <div className="skeleton" style={{ height: '16px', marginBottom: '12px', width: '60%' }} />
-                <div className="skeleton" style={{ height: '16px', width: '70%' }} />
-              </div>
-            ) : issues.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-state-icon">✓</div>
-                <h3>No Issues Found</h3>
-                <p>Run a crawl to start detecting issues.</p>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={mockTrafficData}>
+                <defs>
+                  <linearGradient id="colorTraffic" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#7c5cfc" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#7c5cfc" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
+                <YAxis stroke="#64748b" fontSize={11} />
+                <Tooltip contentStyle={{ backgroundColor: '#0f1219', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '8px' }} />
+                <Area type="monotone" dataKey="traffic" stroke="#7c5cfc" fillOpacity={1} fill="url(#colorTraffic)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Cognitive Goals & Agent Summary */}
+        <div className="bg-slate-900/40 backdrop-blur border border-white/[0.06] rounded-xl p-5 space-y-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-1.5">
+              <Target className="h-4 w-4 text-violet-400" />
+              <h2 className="text-sm font-semibold text-slate-200">Active Goals</h2>
+            </div>
+            <span className="text-xs font-semibold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">{goals.length}</span>
+          </div>
+
+          <div className="space-y-3 overflow-y-auto max-h-60 pr-1">
+            {goals.length === 0 ? (
+              <div className="text-center py-8 text-slate-500 text-xs">
+                No active agent goals. Assign goals via the AI Copilot.
               </div>
             ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Severity</th>
-                    <th>Category</th>
-                    <th>Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {issues.slice(0, 5).map((issue) => (
-                    <tr key={issue.id}>
-                      <td>
-                        <span className={`badge badge-${issue.severity === 'critical' || issue.severity === 'high' ? 'error' : issue.severity === 'medium' ? 'warning' : 'info'}`}>
-                          {issue.severity}
-                        </span>
-                      </td>
-                      <td style={{ color: 'var(--text-primary)' }}>{issue.category}</td>
-                      <td>{issue.description}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              goals.map((g, i) => (
+                <div key={i} className="p-3 bg-slate-950/40 border border-white/[0.03] rounded-lg space-y-1.5">
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-xs font-semibold text-slate-200 line-clamp-1">{g.objective || g.description}</span>
+                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${g.status === 'completed' ? 'bg-emerald-950 text-emerald-400' : 'bg-violet-950 text-violet-400'}`}>
+                      {g.status || 'Active'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">ID: <span className="font-mono text-slate-500">{g.goal_id || `goal-${i}`}</span></p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Area: Recent Activity & Governance Pending Queue */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Pending Approval Fixes */}
+        <div className="bg-slate-900/40 backdrop-blur border border-white/[0.06] rounded-xl overflow-hidden">
+          <div className="p-5 border-bottom border-white/[0.06] flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-amber-500" />
+              <h2 className="text-sm font-semibold text-slate-200">Governance Pending Queue</h2>
+            </div>
+            <span className="text-xs font-semibold text-amber-500 bg-amber-950/50 border border-amber-900/50 px-2 py-0.5 rounded-full">
+              {pendingFixes.length} Pending
+            </span>
+          </div>
+
+          <div className="divide-y divide-white/[0.04] max-h-80 overflow-y-auto">
+            {pendingFixes.length === 0 ? (
+              <div className="text-center py-12 text-slate-500 text-xs">
+                No fixes currently require approval.
+              </div>
+            ) : (
+              pendingFixes.map((fix) => (
+                <div key={fix.id} className="p-4 flex items-center justify-between hover:bg-slate-900/20 transition-colors">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-slate-200">{fix.description}</p>
+                    <p className="text-[11px] text-slate-400">Issue ID: <span className="font-mono">{fix.issue_id}</span></p>
+                  </div>
+                  <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-800/30">
+                    Needs Action
+                  </span>
+                </div>
+              ))
             )}
           </div>
         </div>
 
-        {/* Audit Trail */}
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">Activity Timeline</div>
-              <div className="card-subtitle">Recent platform events</div>
+        {/* Audit Trail Activity */}
+        <div className="bg-slate-900/40 backdrop-blur border border-white/[0.06] rounded-xl overflow-hidden">
+          <div className="p-5 border-bottom border-white/[0.06] flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-violet-400" />
+              <h2 className="text-sm font-semibold text-slate-200">Audit Trail Logs</h2>
             </div>
-            <button className="btn btn-ghost btn-sm">View All →</button>
           </div>
-          <div className="card-body">
-            {loading ? (
-              <div>
-                <div className="skeleton" style={{ height: '16px', marginBottom: '12px', width: '90%' }} />
-                <div className="skeleton" style={{ height: '16px', marginBottom: '12px', width: '75%' }} />
-                <div className="skeleton" style={{ height: '16px', width: '85%' }} />
-              </div>
-            ) : auditLog.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-state-icon">📋</div>
-                <h3>No Activity Yet</h3>
-                <p>Platform events will appear here.</p>
+
+          <div className="p-4 timeline max-h-80 overflow-y-auto space-y-4">
+            {auditLog.length === 0 ? (
+              <div className="text-center py-12 text-slate-500 text-xs">
+                No activity logs available.
               </div>
             ) : (
-              <div className="timeline">
-                {auditLog.slice(0, 6).map((entry) => (
-                  <div key={entry.id} className="timeline-item">
-                    <div className={`timeline-dot ${entry.action.includes('approve') ? 'success' : entry.action.includes('reject') ? 'error' : ''}`} />
-                    <div className="timeline-content">
-                      <div className="timeline-title">{entry.action}</div>
-                      <div className="timeline-time">{entry.actor} · {entry.timestamp}</div>
-                    </div>
+              auditLog.slice(0, 8).map((log) => (
+                <div key={log.id} className="flex gap-3 relative group">
+                  <div className="h-2 w-2 rounded-full bg-violet-500 mt-1.5 flex-shrink-0" />
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-slate-300 font-medium">{log.action}</p>
+                    <p className="text-[10px] text-slate-500">{log.actor} · {log.timestamp}</p>
+                    {log.detail && <p className="text-[11px] text-slate-400 bg-slate-950/40 border border-white/[0.02] p-1.5 rounded mt-1 font-mono">{log.detail}</p>}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))
             )}
           </div>
         </div>

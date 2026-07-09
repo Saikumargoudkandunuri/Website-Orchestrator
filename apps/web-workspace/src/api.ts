@@ -97,6 +97,8 @@ export const agenticApi = {
   reflection: {
     run: (executionId: string, steps: Record<string, unknown>[]) => request<Record<string, unknown>>(`/agentic/reflection/run${qs({ execution_id: executionId })}`, { method: 'POST', body: JSON.stringify(steps) }),
     get: (executionId: string) => request<Record<string, unknown>>(`/agentic/reflection/${executionId}`),
+    getProviderScores: () => request<Record<string, unknown>[]>('/agentic/learning/provider-scores'),
+    getToolScores: () => request<Record<string, unknown>[]>('/agentic/learning/tool-scores'),
   },
   learning: {
     providerScores: () => request<Record<string, unknown>[]>('/agentic/learning/provider-scores'),
@@ -197,6 +199,8 @@ export const enterpriseApi = {
   getUsage: () => request<Record<string, number>>(`/v1/enterprise/billing/usage${qs({ tenant_id: TENANT })}`),
   createSubscription: (orgId: string, data: { plan: string; billing_cycle: string }) =>
     request<Record<string, unknown>>(`/v1/enterprise/billing/subscriptions${qs({ org_id: orgId })}`, { method: 'POST', body: JSON.stringify(data) }),
+  scimCreateUser: (data: { userName: string; emails: { value: string; primary: boolean }[] }) =>
+    request<Record<string, unknown>>('/v1/enterprise/scim/v2/Users', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export const marketplaceApi = {

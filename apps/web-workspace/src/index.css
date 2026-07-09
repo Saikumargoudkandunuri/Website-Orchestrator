@@ -1,10 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* ============================================================
    Website Orchestrator — Design System
    Premium AI-native dark-mode enterprise application
    ============================================================ */
 
 /* --- Reset & Base --- */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; }
 
 :root {
   /* Color Palette — Dark Enterprise */
