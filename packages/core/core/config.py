@@ -132,6 +132,12 @@ class Settings(BaseSettings):
     #: ``account_id:token:tenant_id:role1,role2``.
     growth_auth_service_accounts: str = ""
 
+    #: Whether the Executive CMO portfolio scheduler starts with the API.
+    #: Defaults to false so upgrading cannot unexpectedly crawl sites or prepare
+    #: governed changes. Once enabled, the scheduler discovers verified sites
+    #: and applies each site's AI/memory/automation/governance policy.
+    cmo_scheduler_enabled: bool = False
+
     #: Maximum retry attempts for a failed background job before it is moved to
     #: the dead-letter queue (§2.3 production scheduler).
     growth_job_max_retries: int = 3

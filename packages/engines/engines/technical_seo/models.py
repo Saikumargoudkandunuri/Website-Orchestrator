@@ -55,6 +55,7 @@ class TechnicalSeoAudit(BaseModel):
     high_count: int = 0
     medium_count: int = 0
     passed_count: int = 0
+    health_score: float = 100.0   # 0-100 Site Audit Health Score (§1.2)
     computed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     def summary(self) -> dict[str, Any]:
@@ -65,4 +66,19 @@ class TechnicalSeoAudit(BaseModel):
             "high": self.high_count,
             "medium": self.medium_count,
             "passed": self.passed_count,
+            "health_score": self.health_score,
         }
+
+
+class SiteTechnicalReport(BaseModel):
+    """Site-level technical SEO aggregation (§1.2 Site Audit Overview)."""
+
+    site_id: str
+    tenant_id: str
+    version: int = 1
+    pages_audited: int = 0
+    site_health_score: float = 100.0          # 0-100
+    issues_by_severity: dict[str, int] = Field(default_factory=dict)
+    issues_by_category: dict[str, int] = Field(default_factory=dict)
+    per_category_health: dict[str, float] = Field(default_factory=dict)
+    computed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

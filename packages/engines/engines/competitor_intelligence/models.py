@@ -60,6 +60,24 @@ class PageGap(BaseModel):
     source: str = "inferred"
 
 
+class CompetitorComparison(BaseModel):
+    """Side-by-side comparison of up to 5 domains (§1.4.4 Compare Domains)."""
+    domain: str
+    organic_keywords: int | None = None
+    estimated_traffic: float | None = None
+    backlinks: int | None = None
+    referring_domains: int | None = None
+    authority_score: float | None = None
+
+
+class BacklinkGapItem(BaseModel):
+    """A referring domain linking to competitors but not us (§1.4.6 Backlink Gap)."""
+    referring_domain: str
+    links_to: list[str] = Field(default_factory=list)  # competitor domains it links to
+    authority_score: float | None = None
+    priority: str = "high"  # high | medium | low
+
+
 class CompetitorIntelligenceReport(BaseModel):
     """Sitewide competitor intelligence report (§4.5, architecture-only)."""
 
@@ -75,6 +93,11 @@ class CompetitorIntelligenceReport(BaseModel):
     topic_gap_summary: list[str] = Field(default_factory=list)
     page_gaps: list[PageGap] = Field(default_factory=list)
     visibility_gap_score: float | None = None
+    # --- Priority 5 additions (§1.4, §1.8) ---
+    estimated_traffic: float | None = None
+    traffic_trend: list[float] = Field(default_factory=list)
+    comparison: list[CompetitorComparison] = Field(default_factory=list)
+    backlink_gaps: list[BacklinkGapItem] = Field(default_factory=list)
     #: Always set — consumers must check before treating output as ground truth.
     data_source: str = "fake_provider"
     data_completeness: float = 0.0   # 0.0 = entirely placeholder; 1.0 = full real data

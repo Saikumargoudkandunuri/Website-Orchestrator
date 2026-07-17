@@ -37,3 +37,15 @@ htmlcov/
 secrets.*
 credentials.*
 *.credentials
+
+Website-Orchestrator/
+
+# Local debug/scratch scripts and logs (not part of the shipped codebase)
+backend.log
+backend.err
+_check_pg*.py
+_probe.db
+inspect_responses.ps1
+kill_backend.ps1
+test_new_endpoints.ps1
+test_seo_endpoints.ps1

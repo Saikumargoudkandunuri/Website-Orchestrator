@@ -152,6 +152,30 @@ class WordPressClient(PublishingAdapterPort):
         )
         return self._parse_page(response.json())
 
+    def create_page(
+        self, *, title: str, content: str, slug: str | None = None,
+        status: str = "draft",
+    ) -> WPPage:
+        """Create a new WordPress page (Milestone 4 — Programmatic SEO).
+
+        Always sent as ``draft`` by default: the created resource is never
+        live/public until an explicit human editorial decision publishes it in
+        WordPress. The request body is scoped to exactly the fields a page
+        creation needs (title/content/slug/status) — no other field is set.
+        """
+        body: dict[str, Any] = {"title": title, "content": content, "status": status}
+        if slug:
+            body["slug"] = slug
+        response = self._send("POST", f"{_API_ROOT}/pages", json=body)
+        return self._parse_page(response.json())
+
+    def delete_page(self, page_id: int) -> None:
+        """Permanently delete page/post ``page_id`` (Milestone 4 rollback path
+        for a page created by Programmatic SEO). ``force=true`` bypasses the
+        trash so a rollback is a real, complete removal, not a soft-delete that
+        would leave a stray draft behind."""
+        self._send("DELETE", f"{_API_ROOT}/pages/{page_id}", params={"force": "true"})
+
     def get_media(self, media_id: int) -> WPMedia:
         """Return the live media item identified by ``media_id`` (Req 6.1)."""
         response = self._send("GET", f"{_API_ROOT}/media/{media_id}")
@@ -170,10 +194,35 @@ class WordPressClient(PublishingAdapterPort):
         )
         return self._parse_media(response.json())
 
+    def get_page_meta(self, page_id: int) -> dict[str, str]:
+        """Return the page/post's current REST-registered ``meta`` object
+        (Milestone 5 — RankMath/OG/Twitter/canonical fields)."""
+        response = self._send("GET", f"{_API_ROOT}/pages/{page_id}")
+        payload = response.json()
+        meta = payload.get("meta")
+        return {str(k): str(v) for k, v in meta.items()} if isinstance(meta, dict) else {}
+
+    def update_page_meta(self, page_id: int, meta: dict[str, str]) -> dict[str, str]:
+        """Write only the given ``meta`` keys to page/post ``page_id`` and
+        return the updated meta values (Milestone 5).
+
+        The request body contains a single ``meta`` object with exactly the
+        supplied keys — no other page field is touched.
+        """
+        response = self._send(
+            "POST",
+            f"{_API_ROOT}/pages/{page_id}",
+            json={"meta": dict(meta)},
+        )
+        payload = response.json()
+        updated = payload.get("meta")
+        return {str(k): str(v) for k, v in updated.items()} if isinstance(updated, dict) else dict(meta)
+
     # --- Request pipeline ----------------------------------------------------
 
     def _send(
-        self, method: str, path: str, *, json: dict[str, Any] | None = None
+        self, method: str, path: str, *, json: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
     ) -> httpx.Response:
         """Issue **exactly one** authenticated request and classify the outcome.
 
@@ -195,7 +244,7 @@ class WordPressClient(PublishingAdapterPort):
         url = f"{self._base_url}/{path.lstrip('/')}"
         try:
             # Exactly one attempt — no retry loop (Req 7.6).
-            response = self._client.request(method, url, json=json, auth=auth)
+            response = self._client.request(method, url, json=json, params=params, auth=auth)
         except httpx.TimeoutException as exc:
             # Timeout → WPClientError (Req 7.8). Wrap, never propagate raw
             # (Req 12.4). Use the exception *type* only; its message/args are
@@ -275,6 +324,8 @@ class WordPressClient(PublishingAdapterPort):
             content=self._coerce_rendered(data.get("content")),
             title=self._coerce_rendered(data.get("title")) or None,
             link=data.get("link"),
+            status=data.get("status"),
+            slug=data.get("slug"),
         )
 
     def _parse_media(self, data: dict[str, Any]) -> WPMedia:

@@ -57,6 +57,7 @@ from core.types import (
     CrawledPage,
     FixStatus,
     FixType,
+    HeadingRef,
     Issue,
     IssueCandidate,
     IssueDetail,
@@ -86,6 +87,82 @@ DEFAULT_STALENESS_THRESHOLD_SECONDS: int = 3600
 def _new_id() -> str:
     """Return a fresh opaque identifier for a persisted row."""
     return uuid.uuid4().hex
+
+
+def _norm_url(url: str) -> str:
+    """Normalize a URL to host+path for stable internal-link resolution.
+
+    This is a best-effort normalizer, never a validator: crawled/stored URLs
+    are not guaranteed to be well-formed (property tests exercise arbitrary
+    strings), so a malformed value (e.g. an unbalanced ``[``/``]`` that
+    ``urlsplit`` rejects as an invalid IPv6 host) must degrade to treating the
+    raw string as an opaque identity rather than raising. Raising here would
+    turn a link-graph convenience pass into a hard failure of ``upsert_pages``.
+    """
+    from urllib.parse import urlsplit
+
+    raw = url or ""
+    try:
+        parts = urlsplit(raw if "://" in raw else f"https://{raw}")
+    except ValueError:
+        return raw.lower().rstrip("/")
+    host = (parts.hostname or "").lower().removeprefix("www.")
+    path = (parts.path or "/").rstrip("/") or "/"
+    if not host:
+        # No parseable host (e.g. a bare/malformed token) — fall back to the
+        # raw string so distinct malformed inputs still normalize distinctly
+        # rather than colliding on "" + "/".
+        return raw.lower().rstrip("/")
+    return f"{host}{path}"
+
+
+def _encode_headings(headings: list[HeadingRef]) -> str | None:
+    """Serialize the heading outline to JSON text (``None`` when empty)."""
+    import json
+
+    if not headings:
+        return None
+    return json.dumps([{"level": h.level, "text": h.text} for h in headings])
+
+
+def _decode_headings(raw: str | None) -> list[HeadingRef]:
+    """Deserialize the heading outline from JSON text."""
+    import json
+
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except (ValueError, TypeError):
+        return []
+    out: list[HeadingRef] = []
+    for item in data if isinstance(data, list) else []:
+        if isinstance(item, dict) and "level" in item and "text" in item:
+            try:
+                out.append(HeadingRef(level=int(item["level"]), text=str(item["text"])))
+            except (ValueError, TypeError):
+                continue
+    return out
+
+
+def _encode_str_list(values: list[str]) -> str | None:
+    """Serialize a list of strings to JSON text (``None`` when empty)."""
+    import json
+
+    return json.dumps(list(values)) if values else None
+
+
+def _decode_str_list(raw: str | None) -> list[str]:
+    """Deserialize a list of strings from JSON text."""
+    import json
+
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except (ValueError, TypeError):
+        return []
+    return [str(v) for v in data] if isinstance(data, list) else []
 
 
 def _target_ref_from_row(row: SuggestedFixRow) -> TargetRef | None:
@@ -234,6 +311,9 @@ class DigitalTwinRepository:
                 url=link.href,
                 status_code=link.status_code,
                 reachable=link.reachable,
+                anchor_text=link.anchor_text,
+                rel=link.rel,
+                is_internal=bool(link.is_internal),
             )
             for link in page.links
         ]
@@ -249,6 +329,12 @@ class DigitalTwinRepository:
             word_count=page.word_count,
             has_schema=page.has_schema,
             links=links,
+            slug=page.slug,
+            canonical_url=page.canonical_url,
+            headings=_decode_headings(page.headings),
+            schema_types=_decode_str_list(page.schema_types),
+            wp_page_id=page.wp_page_id,
+            wp_post_type=page.wp_post_type,
             crawled_at=_to_utc(page.crawled_at),
         )
 
@@ -261,6 +347,13 @@ class DigitalTwinRepository:
         page.title = source.title
         page.word_count = source.word_count
         page.has_schema = source.has_schema
+        page.slug = source.slug
+        page.canonical_url = source.canonical_url
+        page.headings = _encode_headings(source.headings)
+        page.schema_types = _encode_str_list(source.schema_types)
+        # ``wp_page_id`` / ``wp_post_type`` are populated by the WordPress
+        # identity resolver, not the crawl, so they are preserved across upserts
+        # unless the source explicitly carries them (it does not today).
         page.crawled_at = _to_utc(source.crawled_at)
 
         # Reassigning the collections lets delete-orphan clear any prior rows on
@@ -272,6 +365,9 @@ class DigitalTwinRepository:
                 href=link.url,
                 status_code=link.status_code,
                 reachable=link.reachable,
+                anchor_text=link.anchor_text,
+                rel=link.rel,
+                is_internal=bool(link.is_internal),
             )
             for link in source.links
         ]
@@ -313,6 +409,60 @@ class DigitalTwinRepository:
                     existing = PageRow(id=_new_id())
                     session.add(existing)
                 self._apply_page(existing, source, tenant)
+            session.flush()
+            self._resolve_internal_link_targets(session, tenant)
+
+    def _resolve_internal_link_targets(self, session: Session, tenant: str) -> None:
+        """Resolve every internal link's ``to_page_id`` by URL match.
+
+        Builds the authoritative internal link graph: each same-domain link
+        whose destination URL matches a persisted page gets that page's id, so
+        the Internal Link / Topical Authority engines can traverse real edges.
+        Links that resolve to no persisted page keep ``to_page_id = None``.
+        """
+        pages = session.execute(
+            select(PageRow).where(PageRow.tenant_id == tenant)
+        ).scalars().all()
+        by_norm = {_norm_url(p.url): p.id for p in pages}
+        for page in pages:
+            for link in page.links:
+                target_id = by_norm.get(_norm_url(link.href))
+                # Only resolve real internal edges; never point a page at itself.
+                if target_id is not None and target_id != page.id:
+                    link.is_internal = True
+                    link.to_page_id = target_id
+                elif link.to_page_id is not None and target_id is None:
+                    link.to_page_id = None
+
+    def resolve_wp_identities(
+        self, tenant_id: str, wp_pages: list[tuple[str, int, str]]
+    ) -> int:
+        """Populate the URL -> WordPress page/post mapping from live WP data.
+
+        ``wp_pages`` is a list of ``(link, wp_id, post_type)`` tuples sourced
+        from the Publishing_Adapter's live listing. Each is matched to a
+        persisted page by normalized URL (against ``url`` and ``canonical_url``),
+        stamping ``wp_page_id`` and ``wp_post_type`` so every governed edit can
+        target the exact page instead of guessing. Returns the number of pages
+        mapped. No fabricated ids: unmatched WP entries are skipped.
+        """
+        tenant = self._resolve_tenant(tenant_id)
+        if not wp_pages:
+            return 0
+        mapping = {_norm_url(link): (wp_id, ptype) for link, wp_id, ptype in wp_pages if link}
+        mapped = 0
+        with self._session() as session:
+            pages = session.execute(
+                select(PageRow).where(PageRow.tenant_id == tenant)
+            ).scalars().all()
+            for page in pages:
+                candidate = mapping.get(_norm_url(page.url))
+                if candidate is None and page.canonical_url:
+                    candidate = mapping.get(_norm_url(page.canonical_url))
+                if candidate is not None:
+                    page.wp_page_id, page.wp_post_type = candidate
+                    mapped += 1
+        return mapped
 
     def get_page(
         self, tenant_id: str, url: str, now: datetime
@@ -347,6 +497,26 @@ class DigitalTwinRepository:
                     threshold_seconds=self._staleness_threshold.total_seconds(),
                 )
             return Ok(self._page_to_record(page))
+
+    def list_pages(self, tenant_id: str) -> list[CrawledPage]:
+        """Return every persisted page for the tenant with its outbound links.
+
+        This is the real read the site-architecture / internal-link analysis
+        needs to build the crawl graph from actual crawl data rather than a
+        synthesized fixture. Pages are returned in a stable URL order.
+        """
+        tenant = self._resolve_tenant(tenant_id)
+        with self._session() as session:
+            rows = (
+                session.execute(
+                    select(PageRow)
+                    .where(PageRow.tenant_id == tenant)
+                    .order_by(PageRow.url)
+                )
+                .scalars()
+                .all()
+            )
+            return [self._page_to_record(row) for row in rows]
 
     # --- DigitalTwinPort: issues ---------------------------------------------
 

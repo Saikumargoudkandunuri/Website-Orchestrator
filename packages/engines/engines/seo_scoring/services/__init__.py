@@ -42,15 +42,13 @@ class SeoScoringService:
     def _technical_component(self, audit):
         if audit is None:
             return ComponentScore(value=0.0, data_completeness=0.0, notes="No audit.", weight=_WEIGHTS["technical_score"])
-        findings = getattr(audit, "findings", []) or []
-        total = len(findings)
-        if total == 0:
-            return ComponentScore(value=100.0, data_completeness=1.0, notes="No findings.", weight=_WEIGHTS["technical_score"])
-        passed = sum(1 for f in findings if getattr(f, "passed", False))
+        # Use the canonical Site Audit Health Score (0-100) from TechnicalSeoService.
+        from engines.technical_seo.services import TechnicalSeoService  # noqa: PLC0415
+        health = TechnicalSeoService.health_score(audit)
         critical = getattr(audit, "critical_count", 0) or 0
-        raw = (passed / total) * 100 - critical * 15
-        return ComponentScore(value=round(max(0.0, min(100.0, raw)), 2), data_completeness=1.0,
-            notes=f"{passed}/{total} passed, {critical} critical.", weight=_WEIGHTS["technical_score"])
+        high = getattr(audit, "high_count", 0) or 0
+        return ComponentScore(value=round(health, 2), data_completeness=1.0,
+            notes=f"Health Score {health:.0f}/100 ({critical} critical, {high} high).", weight=_WEIGHTS["technical_score"])
 
     def _content_component(self, ko):
         if ko is None:

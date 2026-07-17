@@ -13,6 +13,7 @@ DATABASE_URL is unset or points to SQLite.
 
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 
@@ -36,27 +37,43 @@ def _drop_all_tables(engine, database_url: str) -> None:
             conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
 
 
+# Truthy values enabling the opt-in PostgreSQL validation path (mirrors conftest).
+_TRUTHY = frozenset({"1", "true", "yes", "on"})
+
+
 @pytest.fixture()
 def database_url(tmp_path):
-    """Return the database URL from environment, falling back to temporary SQLite file."""
-    try:
-        url = get_database_url()
-        # If it's a PostgreSQL URL, test connectivity before using it
-        if url.startswith("postgresql"):
-            # Try to connect to verify the database is available
-            test_engine = create_engine(url)
-            try:
-                with test_engine.connect() as conn:
-                    conn.execute(text("SELECT 1"))
-                test_engine.dispose()
-                return url
-            except Exception:
-                # PostgreSQL URL configured but not reachable, fall back to SQLite
-                test_engine.dispose()
-                pass
-    except Exception:
-        pass
-    # Fall back to a temporary file-based SQLite for fast local iteration
+    """Resolve the migration-validation database — hermetic SQLite by default.
+
+    This mirrors the workspace-wide testing contract documented in
+    ``packages/digital_twin/tests/conftest.py``: the root ``uv run pytest`` must
+    never depend on external services, so migrations are validated against a
+    fresh temporary SQLite database by default. PostgreSQL validation is an
+    explicit opt-in via ``WO_TEST_POSTGRES=1`` (with the URL taken from
+    ``WO_TEST_DATABASE_URL`` or ``DATABASE_URL``), and even then it degrades to
+    SQLite when the configured PostgreSQL is unreachable.
+
+    Crucially, the opt-in is *not* triggered by the mere presence of
+    ``DATABASE_URL`` (which the application and ``.env`` always define) — coupling
+    the default run to that variable is exactly what previously prevented the
+    root ``uv run pytest`` from running cleanly against a shared database.
+    """
+    opt_in = os.environ.get("WO_TEST_POSTGRES", "").strip().lower() in _TRUTHY
+    if opt_in:
+        for var in ("WO_TEST_DATABASE_URL", "DATABASE_URL"):
+            url = os.environ.get(var, "")
+            if url.startswith("postgresql"):
+                # Verify connectivity before using it; otherwise fall back.
+                test_engine = create_engine(url)
+                try:
+                    with test_engine.connect() as conn:
+                        conn.execute(text("SELECT 1"))
+                    test_engine.dispose()
+                    return url
+                except Exception:
+                    test_engine.dispose()
+                    break
+    # Hermetic default: a fresh temporary file-based SQLite database.
     # (in-memory sqlite:// doesn't work because Alembic and the test use different connections)
     sqlite_path = tmp_path / "test.db"
     return f"sqlite:///{sqlite_path}"
@@ -65,16 +82,39 @@ def database_url(tmp_path):
 @pytest.fixture()
 def alembic_config(database_url, monkeypatch):
     """Return an Alembic Config pointing at the migrations directory and the test database."""
-    # Override the DATABASE_URL in the environment so env.py picks up the test database
+    # Override the DATABASE_URL in the environment so env.py picks up the test database.
     monkeypatch.setenv("DATABASE_URL", database_url)
-    
+
+    # The Alembic env.py resolves the URL via ``get_database_url() -> get_settings()``,
+    # and ``get_settings()`` is process-wide ``lru_cache``d. Without clearing it, the
+    # migrations run against whatever URL was cached by an *earlier* test in the suite
+    # while the checks below use *this* test's ``database_url`` — so they diverge (the
+    # migration lands in one database and the assertion inspects an empty one). Clearing
+    # the cache makes env.py honour this test's DATABASE_URL, keeping the test hermetic
+    # and independent of execution order.
+    try:
+        from core.config import get_settings
+
+        get_settings.cache_clear()
+    except Exception:  # noqa: BLE001 - settings caching is best-effort to reset
+        pass
+
     migrations_dir = Path(__file__).parent.parent / "migrations"
     ini_path = Path(__file__).parent.parent / "alembic.ini"
-    
+
     cfg = Config(str(ini_path))
     cfg.set_main_option("script_location", str(migrations_dir))
     cfg.set_main_option("sqlalchemy.url", database_url)
-    return cfg
+
+    yield cfg
+
+    # Reset again so later tests / the application re-read their own configuration.
+    try:
+        from core.config import get_settings
+
+        get_settings.cache_clear()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def test_migration_model_sync_autogenerate_produces_empty_diff(alembic_config, database_url):

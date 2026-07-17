@@ -159,6 +159,8 @@ class RankTrackingService:
             visibility_trend=self._compute_visibility_trend(snapshots),
             share_of_voice=self._compute_share_of_voice(site_id, snapshots),
             computed_at=datetime.now(timezone.utc),
+            serp_features=self._compute_serp_features(snapshots),
+            rank_distribution=self._compute_rank_distribution(snapshots),
         )
         return Ok(report)
 
@@ -214,3 +216,38 @@ class RankTrackingService:
     def _compute_share_of_voice(self, site_id: str, snapshots: list[RankingSnapshot]) -> float | None:
         """Reserved for M3 competitor-rank integration when real provider data exists."""
         return None
+
+    def _compute_serp_features(self, snapshots: list[RankingSnapshot]) -> dict[str, int]:
+        """Count SERP features owned across the latest snapshots (§1.3 SERP Features tab)."""
+        features: dict[str, int] = {}
+        for snap in snapshots:
+            for ftype in getattr(snap, "serp_features", []) or []:
+                name = ftype if isinstance(ftype, str) else getattr(ftype, "feature_type", None)
+                if name:
+                    features[name] = features.get(name, 0) + 1
+        return features
+
+    def _compute_rank_distribution(self, snapshots: list[RankingSnapshot]) -> dict[str, int]:
+        """Bucket latest positions into rank bands (§1.3 Rank distribution bar)."""
+        bands = {"1-3": 0, "4-10": 0, "11-20": 0, "21-50": 0, "51-100": 0}
+        # Use only the most recent snapshot per keyword.
+        latest: dict[str, RankingSnapshot] = {}
+        for snap in snapshots:
+            cur = latest.get(snap.keyword_id)
+            if cur is None or snap.captured_at > cur.captured_at:
+                latest[snap.keyword_id] = snap
+        for snap in latest.values():
+            pos = snap.position
+            if pos is None:
+                continue
+            if pos <= 3:
+                bands["1-3"] += 1
+            elif pos <= 10:
+                bands["4-10"] += 1
+            elif pos <= 20:
+                bands["11-20"] += 1
+            elif pos <= 50:
+                bands["21-50"] += 1
+            else:
+                bands["51-100"] += 1
+        return bands

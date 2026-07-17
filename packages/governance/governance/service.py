@@ -74,6 +74,7 @@ held at ``approved`` and never advances to ``applied`` (Req 8.6, 8.12).
 
 from __future__ import annotations
 
+import json
 import uuid
 
 from core.exceptions import (
@@ -120,6 +121,10 @@ class GovernanceService:
     ) -> None:
         self._twin = digital_twin
         self._pa = publishing_adapter
+        # Milestone 4 — create_page has no target id until the write succeeds;
+        # this in-process map lets the caller retrieve the created page's real
+        # id right after approve_fix() without a schema change to SuggestedFix.
+        self._created_page_ids: dict[str, int] = {}
 
     # --- Reads ----------------------------------------------------------------
 
@@ -275,6 +280,10 @@ class GovernanceService:
 
         The read target is selected by the fix's ``fix_type`` and ``target_ref``:
         media ``alt_text`` for an alt-text fix, page ``content`` for a page fix.
+        A ``create_page`` fix has no live BEFORE state (the resource does not
+        exist yet) — its "before" is the empty string, so the audit entry still
+        records a well-formed transition without contacting a nonexistent
+        resource (Req 8.4, 9.3).
         """
         target = fix.target_ref
         if fix.fix_type is FixType.UPDATE_ALT_TEXT:
@@ -291,13 +300,35 @@ class GovernanceService:
                 )
             page = self._pa.get_page(target.page_id)
             return page.content
+        if fix.fix_type is FixType.CREATE_PAGE:
+            return ""
+        if fix.fix_type is FixType.UPDATE_SEO_META:
+            if target is None or target.page_id is None:
+                raise GovernanceError(
+                    f"Auto-applicable SEO-meta fix {fix.id!r} has no page target."
+                )
+            current = self._pa.get_page_meta(target.page_id)
+            proposed_keys = json.loads(fix.proposed_value) if fix.proposed_value else {}
+            # Only capture the BEFORE value of the keys this fix will actually
+            # write, so rollback restores exactly what it changed.
+            return json.dumps({k: current.get(k, "") for k in proposed_keys}, sort_keys=True)
         raise GovernanceError(
             f"Fix {fix.id!r} has no writable fix_type for an auto-applicable "
             "approval."
         )
 
     def _write_proposed_value(self, fix: SuggestedFix) -> None:
-        """Write the fix's ``proposed_value`` to the live site (Req 6.2)."""
+        """Write the fix's ``proposed_value`` to the live site (Req 6.2).
+
+        For ``create_page``, ``proposed_value`` is the JSON-encoded page spec
+        (``{"title", "content", "slug"}``); the created page is always a
+        WordPress ``draft`` (never live/public) until an explicit human
+        editorial decision publishes it, and the created page's real id is
+        recorded back onto the fix's persisted record via
+        :meth:`~core.interfaces.DigitalTwinPort.update_fix_status` semantics —
+        the caller (Programmatic SEO execution) reads the id from the
+        Publishing_Adapter's return value at approval time.
+        """
         target = fix.target_ref
         proposed = fix.proposed_value or ""
         if fix.fix_type is FixType.UPDATE_ALT_TEXT:
@@ -306,10 +337,32 @@ class GovernanceService:
         elif fix.fix_type is FixType.UPDATE_PAGE_CONTENT:
             assert target is not None and target.page_id is not None
             self._pa.update_page_content(target.page_id, proposed)
+        elif fix.fix_type is FixType.CREATE_PAGE:
+            spec = json.loads(proposed) if proposed else {}
+            created = self._pa.create_page(
+                title=spec.get("title", ""), content=spec.get("content", ""),
+                slug=spec.get("slug"), status="draft",
+            )
+            self._created_page_ids[fix.id] = created.id
+        elif fix.fix_type is FixType.UPDATE_SEO_META:
+            assert target is not None and target.page_id is not None
+            meta = json.loads(proposed) if proposed else {}
+            self._pa.update_page_meta(target.page_id, meta)
         else:  # pragma: no cover - guarded by _read_before_value
             raise GovernanceError(
                 f"Fix {fix.id!r} has no writable fix_type."
             )
+
+    def last_created_page_id(self, fix_id: str) -> int | None:
+        """Return the WordPress page id created by a just-applied ``create_page``
+        fix, or ``None`` if that fix has not been applied in this process.
+
+        This is the one piece of state a ``create_page`` approval must surface
+        that no other fix type needs (the target id does not exist until the
+        write succeeds); it is intentionally NOT persisted onto ``SuggestedFix``
+        so the Digital_Twin schema stays unchanged (Req: no schema redesign).
+        """
+        return self._created_page_ids.get(fix_id)
 
     # --- Shared helpers (extended by tasks 11.2 / 11.3) -----------------------
 
@@ -586,6 +639,13 @@ class GovernanceService:
         The write target is selected by the fix's ``fix_type`` and ``target_ref``:
         media ``alt_text`` for an alt-text fix, page ``content`` for a page fix.
         Used by the rollback path to restore the audited BEFORE value (Req 9.2).
+
+        A ``create_page`` rollback has no "content to restore" — the correct
+        reversal is deleting the page the approval created (Req: rollback
+        supported for every action). The created page's real id is recovered
+        from :attr:`_created_page_ids`, populated by the original approval in
+        this process; the exact id was captured at creation time and is never
+        guessed from a URL.
         """
         target = fix.target_ref
         if fix.fix_type is FixType.UPDATE_ALT_TEXT:
@@ -600,6 +660,21 @@ class GovernanceService:
                     f"Content fix {fix.id!r} has no page target to write."
                 )
             self._pa.update_page_content(target.page_id, value)
+        elif fix.fix_type is FixType.CREATE_PAGE:
+            created_id = self._created_page_ids.get(fix.id)
+            if created_id is None:
+                raise GovernanceError(
+                    f"Create-page fix {fix.id!r} has no recorded created page id "
+                    "to roll back in this process."
+                )
+            self._pa.delete_page(created_id)
+        elif fix.fix_type is FixType.UPDATE_SEO_META:
+            if target is None or target.page_id is None:
+                raise GovernanceError(
+                    f"SEO-meta fix {fix.id!r} has no page target to write."
+                )
+            restored = json.loads(value) if value else {}
+            self._pa.update_page_meta(target.page_id, restored)
         else:
             raise GovernanceError(
                 f"Fix {fix.id!r} has no writable fix_type."

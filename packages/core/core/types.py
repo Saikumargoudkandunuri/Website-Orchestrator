@@ -28,6 +28,7 @@ __all__ = [
     "RedirectChain",
     "LinkStatus",
     "ImageRef",
+    "HeadingRef",
     "IssueDetail",
     "TargetRef",
     "CrawledPage",
@@ -75,6 +76,8 @@ class FixType(str, Enum):
 
     UPDATE_ALT_TEXT = "update_alt_text"
     UPDATE_PAGE_CONTENT = "update_page_content"
+    CREATE_PAGE = "create_page"  # Milestone 4 — Programmatic SEO governed page creation
+    UPDATE_SEO_META = "update_seo_meta"  # Milestone 5 — RankMath/OG/Twitter/canonical postmeta
 
 
 class FixStatus(str, Enum):
@@ -98,11 +101,21 @@ class RedirectChain(BaseModel):
 
 
 class LinkStatus(BaseModel):
-    """The observed status of a single link (Req 2.3, 2.4)."""
+    """The observed status of a single link (Req 2.3, 2.4).
+
+    Milestone 4 — the link graph is now editable-model input. ``anchor_text`` is
+    the exact visible anchor captured from the source HTML (``None`` when the
+    anchor had no text, e.g. an image link), ``rel`` is the raw ``rel`` attribute
+    when present, and ``is_internal`` marks links whose target is on the crawled
+    site's registrable domain. These are populated from real crawl data only.
+    """
 
     url: str
     status_code: int | None = None  # None when unreachable
     reachable: bool
+    anchor_text: str | None = None
+    rel: str | None = None
+    is_internal: bool = False
 
 
 class ImageRef(BaseModel):
@@ -113,8 +126,22 @@ class ImageRef(BaseModel):
     alt_text: str | None = None  # existing alt text, if any
 
 
+class HeadingRef(BaseModel):
+    """One heading captured from the page, in document order (Milestone 4)."""
+
+    level: int  # 1..6 for h1..h6
+    text: str
+
+
 class CrawledPage(BaseModel):
-    """A record produced by the Crawler for a single retrieved URL (Req 1.1)."""
+    """A record produced by the Crawler for a single retrieved URL (Req 1.1).
+
+    Milestone 4 extends the record so the Digital_Twin becomes the authoritative
+    editable model of the site: ``slug`` and ``canonical_url`` locate the page,
+    ``headings`` is the ordered H1-H6 outline, and ``schema_types`` lists the
+    JSON-LD ``@type`` values already present. All are extracted from the real
+    fetched HTML; absent signals stay ``None``/empty rather than being invented.
+    """
 
     url: str
     final_url: str
@@ -127,6 +154,16 @@ class CrawledPage(BaseModel):
     images: list[ImageRef] = Field(default_factory=list)
     redirect_chain: RedirectChain = Field(default_factory=RedirectChain)
     has_schema: bool = False
+    slug: str | None = None
+    canonical_url: str | None = None
+    headings: list[HeadingRef] = Field(default_factory=list)
+    schema_types: list[str] = Field(default_factory=list)
+    # The resolved WordPress identity for this URL (populated by
+    # ``DigitalTwinPort.resolve_wp_identities`` and surfaced on read). These let
+    # executable engines target the exact live page/post — never guessed — when
+    # building a governed edit. ``None`` until identity resolution has run.
+    wp_page_id: int | None = None
+    wp_post_type: str | None = None
     crawled_at: datetime  # UTC
 
 

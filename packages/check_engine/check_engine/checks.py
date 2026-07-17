@@ -259,31 +259,42 @@ class CheckEngine:
 
     # --- Aggregator ----------------------------------------------------------
 
+    def check_page(self, page: CrawledPage) -> list[IssueCandidate]:
+        """Run all single-page checks for ``page`` and return its candidates.
+
+        Excludes the cross-page :meth:`check_duplicate_titles` check, which
+        requires the full page set. The result preserves the fixed per-page
+        check order used everywhere in this module (Req 4.7).
+        """
+
+        candidates: list[IssueCandidate] = []
+        for single_check in (
+            self.check_missing_title,
+            self.check_missing_meta_description,
+            self.check_thin_content,
+            self.check_redirect_chains,
+            self.check_missing_schema,
+        ):
+            candidate = single_check(page)
+            if candidate is not None:
+                candidates.append(candidate)
+        candidates.extend(self.check_missing_alt_text(page))
+        candidates.extend(self.check_broken_links(page))
+        return candidates
+
     def run_all_checks(
         self, pages: list[CrawledPage]
     ) -> list[IssueCandidate]:
         """Run every individual check across ``pages`` and return the
         aggregated candidates (Req 4.7).
 
-        Each page-level check runs once per page (in page order, and in a fixed
-        check order within each page), then the cross-page
+        Each page runs through :meth:`check_page`, then the cross-page
         :meth:`check_duplicate_titles` runs across the whole set. The result
         ordering is fully deterministic for a given input.
         """
 
         candidates: list[IssueCandidate] = []
         for page in pages:
-            for single_check in (
-                self.check_missing_title,
-                self.check_missing_meta_description,
-                self.check_thin_content,
-                self.check_redirect_chains,
-                self.check_missing_schema,
-            ):
-                candidate = single_check(page)
-                if candidate is not None:
-                    candidates.append(candidate)
-            candidates.extend(self.check_missing_alt_text(page))
-            candidates.extend(self.check_broken_links(page))
+            candidates.extend(self.check_page(page))
         candidates.extend(self.check_duplicate_titles(pages))
         return candidates

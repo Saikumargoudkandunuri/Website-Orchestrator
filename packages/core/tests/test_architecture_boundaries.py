@@ -65,6 +65,7 @@ SUBSYSTEM_TOP_LEVEL = frozenset(
         "fix_generator",
         "publishing_adapter",
         "governance",
+        "editing",
         "api",
     }
 )
@@ -80,6 +81,7 @@ LEAF_SUBSYSTEMS: dict[str, Path] = {
         "fix_generator",
         "publishing_adapter",
         "governance",
+        "editing",
     )
 }
 
@@ -185,7 +187,9 @@ def test_governance_does_not_import_other_subsystems() -> None:
 
 #: The WordPress-writing operations. Their concrete *implementations* must live
 #: only in publishing_adapter source (Req 6.1, 6.2).
-WP_WRITE_METHODS = frozenset({"update_page_content", "update_media_alt_text"})
+WP_WRITE_METHODS = frozenset({
+    "update_page_content", "update_media_alt_text", "create_page", "delete_page",
+})
 
 
 def _defined_function_names(tree: ast.AST) -> set[str]:

@@ -64,6 +64,31 @@ class LongTailOpportunity(BaseModel):
     data_source: str = "heuristic"
 
 
+class SerpFeature(BaseModel):
+    """A SERP feature present for a tracked keyword (§1.3 / §1.5)."""
+    feature_type: str   # featured_snippet | ai_overview | local_pack | paa | sitelinks | reviews ...
+    owned_by_us: bool = False
+    source: str = "inferred"
+
+
+class KeywordGapItem(BaseModel):
+    """One keyword in a gap analysis segment (§1.4.5 Keyword Gap)."""
+    keyword: str
+    competitor_positions: dict[str, int | None] = Field(default_factory=dict)  # domain -> position
+    our_position: int | None = None
+    estimated_volume: float | None = None
+    segment: str  # missing | weak | strong | untapped | unique
+
+
+class PillarClusterPlan(BaseModel):
+    """A pillar page + cluster pages plan (§1.5.3 Keyword Strategy Builder)."""
+    pillar_keyword: str
+    cluster_ids: list[str] = Field(default_factory=list)
+    total_cluster_volume: float = 0.0
+    average_difficulty: float | None = None
+    intent: str | None = None
+
+
 class KeywordEngineReport(BaseModel):
     """Keyword Intelligence engine output for one page (§4.3)."""
 
@@ -76,4 +101,8 @@ class KeywordEngineReport(BaseModel):
     cannibalization_flags: list[CannibalizationFlag] = Field(default_factory=list)
     long_tail_opportunities: list[LongTailOpportunity] = Field(default_factory=list)
     keyword_gap_summary: list[str] = Field(default_factory=list)  # sitewide gaps, AI-inferred
+    # --- Priority 2 additions (Semrush Keyword Research / Gap) ---
+    serp_features: list[SerpFeature] = Field(default_factory=list)
+    keyword_gaps: list[KeywordGapItem] = Field(default_factory=list)
+    pillar_plan: list[PillarClusterPlan] = Field(default_factory=list)
     computed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

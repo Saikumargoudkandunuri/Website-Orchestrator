@@ -67,6 +67,16 @@ class Page(Base):
     has_schema: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     crawled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
+    # Milestone 4 — the editable-model fields. All nullable so existing rows and
+    # the additive migration remain valid; JSON-shaped fields are stored as JSON
+    # text to stay identical across SQLite and PostgreSQL.
+    slug: Mapped[str | None] = mapped_column(String, nullable=True)
+    canonical_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    headings: Mapped[str | None] = mapped_column(Text, nullable=True)
+    schema_types: Mapped[str | None] = mapped_column(Text, nullable=True)
+    wp_page_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    wp_post_type: Mapped[str | None] = mapped_column(String, nullable=True)
+
     links: Mapped[list[Link]] = relationship(
         back_populates="page", cascade="all, delete-orphan"
     )
@@ -98,6 +108,15 @@ class Link(Base):
     redirect_chain_len: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0
     )
+    # Milestone 4 — the internal link graph. ``anchor_text``/``rel`` are captured
+    # verbatim from the source HTML; ``is_internal`` marks same-domain links; and
+    # ``to_page_id`` is the resolved destination page id (a plain reference,
+    # populated after upsert by URL match — no DB-level FK so SQLite ADD COLUMN
+    # stays safe). All nullable for a purely additive migration.
+    anchor_text: Mapped[str | None] = mapped_column(String, nullable=True)
+    rel: Mapped[str | None] = mapped_column(String, nullable=True)
+    is_internal: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    to_page_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
     page: Mapped[Page] = relationship(back_populates="links")
 

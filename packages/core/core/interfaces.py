@@ -74,13 +74,18 @@ class WPPage(BaseModel):
     """A WordPress page/post as returned by the Publishing_Adapter.
 
     Milestone 0 reads and writes only the ``content`` field; ``id`` identifies
-    the live resource for subsequent writes (Req 6.2).
+    the live resource for subsequent writes (Req 6.2). Milestone 4 adds
+    ``status`` and ``slug`` so a newly created page's draft state is visible to
+    callers (Programmatic SEO creates pages in ``draft`` — never live/public —
+    until a human editorial decision publishes them in WordPress).
     """
 
     id: int
     content: str
     title: str | None = None
     link: str | None = None
+    status: str | None = None
+    slug: str | None = None
 
 
 class WPMedia(BaseModel):
@@ -121,6 +126,25 @@ class DigitalTwinPort(Protocol):
 
     def upsert_pages(self, tenant_id: str, pages: list[CrawledPage]) -> None:
         """Insert or update the given ``pages`` for ``tenant_id`` (Req 3.1)."""
+        ...
+
+    def list_pages(self, tenant_id: str) -> list[CrawledPage]:
+        """Return every persisted page for ``tenant_id`` (Milestone 4).
+
+        The authoritative editable-model read: gives callers (engines, the
+        onboarding WP-identity resolver) the real crawl graph rather than a
+        synthesized fixture."""
+        ...
+
+    def resolve_wp_identities(
+        self, tenant_id: str, wp_pages: list[tuple[str, int, str]]
+    ) -> int:
+        """Map crawled URLs to live WordPress page/post ids (Milestone 4).
+
+        ``wp_pages`` is ``(link, wp_id, post_type)`` sourced from the
+        Publishing_Adapter's live listing. Matches by normalized URL against a
+        page's ``url``/``canonical_url``; unmatched entries are skipped rather
+        than fabricated. Returns the number of pages mapped."""
         ...
 
     def get_page(
@@ -230,6 +254,11 @@ class CheckEnginePort(Protocol):
         """Flag a page with no schema/JSON-LD markup (Req 4.2)."""
         ...
 
+    def check_page(self, page: CrawledPage) -> list[IssueCandidate]:
+        """Run all single-page checks for ``page`` and return its candidates
+        (excluding cross-page checks such as duplicate-title detection)."""
+        ...
+
     def check_duplicate_titles(
         self, pages: list[CrawledPage]
     ) -> list[IssueCandidate]:
@@ -331,6 +360,22 @@ class PublishingAdapterPort(Protocol):
         record (Req 6.2)."""
         ...
 
+    def create_page(
+        self, *, title: str, content: str, slug: str | None = None,
+        status: str = "draft",
+    ) -> WPPage:
+        """Create a new WordPress page (Milestone 4 — Programmatic SEO).
+
+        Always creates in ``draft`` status by default so a newly generated page
+        is never live/public without an explicit human editorial decision in
+        WordPress. Returns the created :class:`WPPage` (with its real ``id``)."""
+        ...
+
+    def delete_page(self, page_id: int) -> None:
+        """Permanently delete the page/post ``page_id`` (Milestone 4 rollback
+        for a page created by Programmatic SEO)."""
+        ...
+
     def get_media(self, media_id: int) -> WPMedia:
         """Return the live media item identified by ``media_id`` (Req 6.1)."""
         ...
@@ -338,6 +383,26 @@ class PublishingAdapterPort(Protocol):
     def update_media_alt_text(self, media_id: int, alt_text: str) -> WPMedia:
         """Write ``alt_text`` to the media ``media_id`` and return the updated
         record (Req 6.2)."""
+        ...
+
+    def get_page_meta(self, page_id: int) -> dict[str, str]:
+        """Return the page/post's current RankMath/OG/Twitter/canonical postmeta
+        values (Milestone 5 — Automatic Blog Writer / RankMath fields).
+
+        Reads the standard WordPress REST ``meta`` object on the page/post
+        resource. Only meta keys the site's WordPress install has registered as
+        ``show_in_rest`` (e.g. by RankMath or an equivalent SEO plugin/filter)
+        are readable/writable through this port; unregistered keys are simply
+        absent from the response rather than fabricated."""
+        ...
+
+    def update_page_meta(self, page_id: int, meta: dict[str, str]) -> dict[str, str]:
+        """Write the given RankMath/OG/Twitter/canonical postmeta ``meta`` keys
+        to page/post ``page_id`` and return the updated meta values (Milestone 5).
+
+        The request body contains only the ``meta`` object with exactly the keys
+        supplied — no other page field is touched. Success depends on the target
+        WordPress site having registered those meta keys as REST-writable."""
         ...
 
 

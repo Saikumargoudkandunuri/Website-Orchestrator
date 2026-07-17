@@ -43,6 +43,7 @@ class RankingSnapshot:
     captured_at: datetime
     url: str | None = None  # Actual URL that ranked (may differ from expected page)
     data_source: str = "provider"
+    serp_features: list[str] = field(default_factory=list)  # SERP features present for this query
 
 
 @dataclass(frozen=True)
@@ -84,6 +85,9 @@ class RankTrackingReport:
     computed_at: datetime  # Report assembly time (NOT snapshot capture time)
     data_source: str = "provider"
     data_completeness: float = 1.0
+    # --- Priority 2 additions (Semrush Position Tracking / Ahrefs Rank Tracker) ---
+    serp_features: dict[str, int] = field(default_factory=dict)   # feature_type -> count owned
+    rank_distribution: dict[str, int] = field(default_factory=dict)  # "1-3" | "4-10" | "11-20" | "21-50" | "51-100"
 
 
 # Note: RankingSnapshot itself is NOT a "report" - it's raw time series data

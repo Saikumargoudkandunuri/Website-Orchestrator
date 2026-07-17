@@ -27,11 +27,13 @@ __all__ = [
 
 
 class ToxicLinkFlag(BaseModel):
-    """A backlink flagged as potentially toxic/spammy (§4.6)."""
+    """A backlink flagged as potentially toxic/spammy (§4.6, §3.3)."""
 
     source_url: str
+    target_url: str | None = None
     reason: str | None = None
-    spam_score: float | None = None    # provider-signal when available
+    spam_score: float | None = None    # 0-100 toxicity score (§3.3)
+    toxicity_band: str | None = None   # safe | potentially_toxic | toxic
     data_source: str = "heuristic"
 
 
@@ -58,6 +60,13 @@ class LinkOpportunity(BaseModel):
     source: str = "proposed"
 
 
+class DisavowEntry(BaseModel):
+    """A single entry in a Google Disavow file (§3.7)."""
+    domain: str | None = None      # domain-level disavow (# domain:example.com)
+    url: str | None = None         # URL-level disavow
+    reason: str | None = None
+
+
 class BacklinkIntelligenceReport(BaseModel):
     """Sitewide backlink intelligence report (§4.6, architecture-only for provider data)."""
 
@@ -74,4 +83,8 @@ class BacklinkIntelligenceReport(BaseModel):
     #: Always set — see §4.5 data_source pattern.
     data_source: str = "fake_provider"
     data_completeness: float = 0.0
+    # --- Priority 3 additions (§3 Backlink Audit deep-dive) ---
+    new_backlinks: list[BacklinkRecord] = Field(default_factory=list)
+    lost_backlinks: list[BacklinkRecord] = Field(default_factory=list)
+    disavow_entries: list[DisavowEntry] = Field(default_factory=list)
     computed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -1,0 +1,21 @@
+# Editing — structural (DOM-based) HTML edit operations. Depends only on Core_Package.
+[project]
+name = "wo-editing"
+version = "0.1.0"
+description = "Editing: structural HTML edit operations (insert internal link, insert schema, update heading) that produce a governed SuggestedFix; never regex-based."
+requires-python = ">=3.11"
+dependencies = [
+    "wo-core",
+    "beautifulsoup4",
+    "lxml",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["editing"]
+
+[tool.uv.sources]
+wo-core = { workspace = true }

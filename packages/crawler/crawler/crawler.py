@@ -69,7 +69,7 @@ from core.constants import (
     REQUEST_TIMEOUT_S,
 )
 from core.exceptions import InvalidCrawlRequest
-from core.types import CrawledPage, ImageRef, LinkStatus, RedirectChain
+from core.types import CrawledPage, HeadingRef, ImageRef, LinkStatus, RedirectChain
 from core.utils import normalize_url, same_registrable_domain, utc_now
 
 from crawler.fetcher import (
@@ -469,6 +469,10 @@ class Crawler:
             images=_extract_images(soup, final_url),
             redirect_chain=_build_redirect_chain(response),
             has_schema=_has_schema(soup),
+            slug=_extract_slug(final_url),
+            canonical_url=_extract_canonical(soup, final_url),
+            headings=_extract_headings(soup),
+            schema_types=_extract_schema_types(soup),
             crawled_at=self._clock(),
         )
 
@@ -545,10 +549,11 @@ def _extract_links(soup: BeautifulSoup, base_url: str) -> list[LinkStatus]:
     """Discover anchor links, resolved against ``base_url`` (Req 1.2, 1.3).
 
     Returns one :class:`~core.types.LinkStatus` per retrievable (http/https)
-    anchor target, de-duplicated in document order. Link *status* is not probed
-    here — ``status_code`` is left ``None`` and ``reachable`` ``False`` until
-    task 5.5 populates observed statuses; downstream broken-link detection keys
-    on ``status_code`` rather than this placeholder.
+    anchor target, de-duplicated in document order. Each link carries its real
+    visible ``anchor_text`` (the first occurrence's text), the raw ``rel``
+    attribute, and ``is_internal`` (same registrable domain as the page). Link
+    *status* is not probed here — ``status_code`` stays ``None`` until the
+    link-status pass populates observed statuses.
     """
     links: list[LinkStatus] = []
     seen: set[str] = set()
@@ -557,8 +562,98 @@ def _extract_links(soup: BeautifulSoup, base_url: str) -> list[LinkStatus]:
         if resolved is None or resolved in seen:
             continue
         seen.add(resolved)
-        links.append(LinkStatus(url=resolved, status_code=None, reachable=False))
+        anchor_text = anchor.get_text(separator=" ", strip=True) or None
+        rel_attr = anchor.get("rel")
+        if isinstance(rel_attr, (list, tuple)):
+            rel = " ".join(str(r) for r in rel_attr) or None
+        elif isinstance(rel_attr, str):
+            rel = rel_attr.strip() or None
+        else:
+            rel = None
+        links.append(
+            LinkStatus(
+                url=resolved,
+                status_code=None,
+                reachable=False,
+                anchor_text=anchor_text,
+                rel=rel,
+                is_internal=same_registrable_domain(base_url, resolved),
+            )
+        )
     return links
+
+
+def _extract_slug(url: str) -> str | None:
+    """Return the trailing path segment (slug) of ``url``, or ``None``."""
+    path = urlsplit(url).path.rstrip("/")
+    if not path:
+        return None
+    return path.rsplit("/", 1)[-1] or None
+
+
+def _extract_canonical(soup: BeautifulSoup, base_url: str) -> str | None:
+    """Return the resolved ``<link rel="canonical">`` href, or ``None``."""
+    tag = soup.find("link", attrs={"rel": "canonical"})
+    if tag is None:
+        # BeautifulSoup may parse rel as a list; fall back to a scan.
+        for candidate in soup.find_all("link", href=True):
+            rel = candidate.get("rel") or []
+            rels = rel if isinstance(rel, (list, tuple)) else [rel]
+            if any(str(r).lower() == "canonical" for r in rels):
+                tag = candidate
+                break
+    if tag is None:
+        return None
+    href = tag.get("href")
+    if not isinstance(href, str) or not href.strip():
+        return None
+    return urljoin(base_url, href.strip()).split("#", 1)[0]
+
+
+def _extract_headings(soup: BeautifulSoup) -> list[HeadingRef]:
+    """Return the ordered H1-H6 outline captured from the page."""
+    headings: list[HeadingRef] = []
+    for tag in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
+        text = tag.get_text(separator=" ", strip=True)
+        if not text:
+            continue
+        headings.append(HeadingRef(level=int(tag.name[1]), text=text[:300]))
+    return headings
+
+
+def _extract_schema_types(soup: BeautifulSoup) -> list[str]:
+    """Return the JSON-LD ``@type`` values already present on the page.
+
+    Parses each ``application/ld+json`` block; malformed blocks are skipped
+    rather than fabricated. Types are de-duplicated in first-seen order.
+    """
+    import json as _json
+
+    found: list[str] = []
+    seen: set[str] = set()
+
+    def _collect(node: object) -> None:
+        if isinstance(node, dict):
+            raw = node.get("@type")
+            for value in (raw if isinstance(raw, list) else [raw]):
+                if isinstance(value, str) and value not in seen:
+                    seen.add(value)
+                    found.append(value)
+            for child in node.values():
+                _collect(child)
+        elif isinstance(node, list):
+            for child in node:
+                _collect(child)
+
+    for block in soup.find_all("script", attrs={"type": "application/ld+json"}):
+        raw_text = block.string or block.get_text()
+        if not raw_text or not raw_text.strip():
+            continue
+        try:
+            _collect(_json.loads(raw_text))
+        except (ValueError, TypeError):
+            continue
+    return found
 
 
 def _extract_images(soup: BeautifulSoup, base_url: str) -> list[ImageRef]:

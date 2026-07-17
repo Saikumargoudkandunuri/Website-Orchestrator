@@ -82,6 +82,7 @@ def create_app(
     subsystems: Subsystems | None = None,
     intelligence: object | None = None,
     growth: object | None = None,
+    onboarding: object | None = None,
 ) -> FastAPI:
     """Create and configure the Website Orchestrator FastAPI application.
 
@@ -136,7 +137,149 @@ def create_app(
         is_production=is_production,
     )
     _mount_growth(app, growth=growth, is_production=is_production)
+    _mount_seo(app)
+    _mount_onboarding(app, onboarding=onboarding, is_production=is_production)
+    _mount_agentic_and_platform(app)
     return app
+
+
+def _mount_seo(app: FastAPI) -> None:
+    """Mount the SEO engine router (6 priority phases) additively."""
+    from api.seo_router import build_properties_router, build_seo_router
+
+    app.include_router(build_seo_router())
+    app.include_router(build_properties_router())
+
+
+def _mount_agentic_and_platform(app: FastAPI) -> None:
+    """Mount the agentic AI, copilot, executive-dashboard and SaaS-surface
+    routers additively so the console's remaining features are reachable.
+
+    The agentic loop reuses the existing subsystems (crawler, digital_twin,
+    check_engine, fix_generator, governance) via ``app.state.subsystems`` and
+    never introduces an unattended publish path — every edit still flows through
+    the Governance_Layer. Wrapped defensively so a wiring failure degrades to
+    "feature not mounted" instead of failing app startup.
+    """
+    try:
+        from api.agent_router import (
+            build_agent_router,
+            build_copilot_router,
+            build_executive_router,
+            configure_cmo_scheduler,
+        )
+        from api.saas_stub_router import build_saas_stub_router
+
+        app.include_router(build_agent_router())
+        app.include_router(build_copilot_router())
+        app.include_router(build_executive_router())
+        app.include_router(build_saas_stub_router())
+
+        # Production can opt into unattended wakeups explicitly. The safe
+        # default is off; when enabled, every tick still honors per-site flags,
+        # governance mode, audit, and rollback policy.
+        try:
+            from core.config import get_settings
+
+            if get_settings().cmo_scheduler_enabled:
+                configure_cmo_scheduler(app)
+        except Exception:  # noqa: BLE001 - scheduler is additive
+            pass
+    except Exception:  # noqa: BLE001 - additive; never break existing surface
+        pass
+
+
+def _mount_onboarding(
+    app: FastAPI, *, onboarding: object | None, is_production: bool
+) -> None:
+    """Mount the Foundation onboarding router additively (never replacing M1)."""
+    from onboarding.routes import build_onboarding_router
+    from onboarding.services import (
+        ConnectionService,
+        OnboardingOrchestrator,
+        ProjectService,
+        WebsiteService,
+        WorkspaceService,
+    )
+    from onboarding.repository import OnboardingRepository
+
+    container = onboarding
+    if container is None and is_production:
+        try:
+            from core.config import get_settings
+
+            settings = get_settings()
+            # Reuse the live Digital_Twin session factory for onboarding storage.
+            from digital_twin.db import create_db_engine, make_session_factory
+            from digital_twin.models import Base
+            from onboarding.models import Base as OnboardingBase
+
+            engine = create_db_engine(settings.database_url)
+            Base.metadata.create_all(engine)
+            OnboardingBase.metadata.create_all(engine)
+            session_factory = make_session_factory(engine)
+            repo = OnboardingRepository(session_factory, tenant_id=settings.tenant_id)
+
+            from crawler import Crawler
+            from check_engine import CheckEngine
+            from fix_generator import FixGenerator
+            from digital_twin.repository import DigitalTwinRepository
+            from publishing_adapter import WordPressClient
+
+            digital_twin = DigitalTwinRepository(
+                session_factory, tenant_id=settings.tenant_id
+            )
+            publishing = WordPressClient(
+                settings.wp_base_url,
+                settings.wp_username,
+                settings.wp_application_password,
+            )
+            workspace_service = WorkspaceService(repo)
+            project_service = ProjectService(repo)
+            website_service = WebsiteService(repo)
+            connection_service = ConnectionService(repo, publishing_adapter=publishing)
+            orchestrator = OnboardingOrchestrator(
+                repo,
+                crawler=Crawler(),
+                digital_twin=digital_twin,
+                check_engine=CheckEngine(),
+                fix_generator=FixGenerator(),
+                publishing_adapter=publishing,
+                tenant_id=settings.tenant_id,
+            )
+            container = {
+                "workspace_service": workspace_service,
+                "project_service": project_service,
+                "website_service": website_service,
+                "connection_service": connection_service,
+                "orchestrator": orchestrator,
+                "tenant_id": settings.tenant_id,
+            }
+        except Exception:  # noqa: BLE001 - no config/datastore => do not mount
+            container = None
+    if container is None:
+        return
+    if not isinstance(container, dict):  # pragma: no cover - defensive
+        return
+
+    # Expose the exact onboarding persistence boundary used by the HTTP routes.
+    # The autonomous CMO uses this shared instance for tenant/site-scoped memory
+    # and connected-site discovery instead of opening a divergent repository.
+    state_container = dict(container)
+    state_container.setdefault(
+        "repository", getattr(container.get("website_service"), "_repo", None)
+    )
+    app.state.onboarding = state_container
+    app.include_router(
+        build_onboarding_router(
+            workspace_service=container["workspace_service"],
+            project_service=container["project_service"],
+            website_service=container["website_service"],
+            connection_service=container["connection_service"],
+            orchestrator=container["orchestrator"],
+            tenant_id=container["tenant_id"],
+        )
+    )
 
 
 def _mount_growth(app: FastAPI, *, growth: object | None, is_production: bool) -> None:

@@ -28,7 +28,7 @@ class TechnicalSeoService(AnalyzerService):
 
         ctx.ko.technical_seo = TechnicalSeoSection(
             crawlable=True,  # the crawler retrieved it
-            indexable=200 <= status < 300 and page.final_url == page.url or 200 <= status < 300,
+            indexable=(200 <= status < 300) and (page.final_url == page.url),
             redirect_chain=hops,
             canonical_issues=self._canonical_issues(ctx),
             duplicate_title_of=[],

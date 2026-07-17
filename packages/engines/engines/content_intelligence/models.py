@@ -81,3 +81,27 @@ class ContentEngineReport(BaseModel):
     #: M2.1 deterministic ContentScore reference (cross-referenced, not duplicated).
     m2_content_score_ref: str | None = None    # e.g. "KnowledgeObject/{page_id}/version/{v}"
     computed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ContentBrief(BaseModel):
+    """Pre-writing SEO brief from top-10 SERP analysis (§1.6.3 SEO Content Template)."""
+    target_keyword: str
+    recommended_word_count: int | None = None
+    semantic_keywords: list[str] = Field(default_factory=list)
+    readability_target: float | None = None
+    recommended_backlink_sources: list[str] = Field(default_factory=list)
+    section_recommendations: dict[str, int] = Field(default_factory=dict)  # section -> target chars
+    title_recommendation: str | None = None
+    meta_description_recommendation: str | None = None
+    schema_suggestions: list[str] = Field(default_factory=list)
+    competitor_urls: list[str] = Field(default_factory=list)
+
+
+class FreshnessStatus(BaseModel):
+    """Content freshness monitoring (§5 P4 Content freshness)."""
+    page_id: str
+    last_updated: datetime | None = None
+    days_since_update: int | None = None
+    is_stale: bool = False            # True if not updated in 12+ months
+    stale_threshold_days: int = 365
+    recommendation: str | None = None

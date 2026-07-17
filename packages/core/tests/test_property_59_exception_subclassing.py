@@ -27,6 +27,7 @@ SUBSYSTEM_BASES = (
     exc.FixGeneratorError,
     exc.AiGeneratorError,
     exc.PublishingError,
+    exc.EditingError,
     exc.GovernanceError,
     exc.ApiError,
     exc.ConfigError,

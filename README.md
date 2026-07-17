@@ -169,7 +169,7 @@ uv run pytest --cov=packages --cov-report=html
 
 ```bash
 cd packages/api
-uv run uvicorn api.app:app --reload
+uv run uvicorn api.app:create_app --reload
 ```
 
 The API will be available at `http://localhost:8000` with automatic documentation at `http://localhost:8000/docs`.

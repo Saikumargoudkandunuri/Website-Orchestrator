@@ -48,6 +48,11 @@ class Subsystems:
     fix_generator: FixGeneratorPort
     governance: GovernancePort
     tenant_id: str
+    # Milestone 4 — executable engines need read access to the exact live page
+    # (by wp_page_id) before building a structural edit. Optional so existing
+    # explicit-injection call sites (tests) that predate this field keep
+    # working unchanged; engine execution degrades honestly when absent.
+    publishing_adapter: PublishingAdapterPort | None = None
 
 
 def build_default_subsystems() -> Subsystems:
@@ -121,4 +126,5 @@ def build_default_subsystems() -> Subsystems:
         fix_generator=FixGenerator(alt_text_service),
         governance=governance,
         tenant_id=settings.tenant_id,
+        publishing_adapter=publishing_adapter,
     )

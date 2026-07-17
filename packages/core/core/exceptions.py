@@ -26,6 +26,8 @@ Hierarchy (mirrors the design's "Exception Hierarchy (Core_Package)")::
     │   ├── WPNotFoundError               # 7.3
     │   ├── WPClientError                 # 7.4, 7.8
     │   └── MissingCredentialError        # Application_Password absent (6.6)
+    ├── EditingError                       # Milestone 4 — structural HTML edits
+    │   └── EditTargetNotFoundError        # the requested edit anchor/target is absent
     ├── GovernanceError
     │   ├── FixNotFoundError              # 8.9
     │   ├── FixAlreadyDecidedError        # 8.8
@@ -67,6 +69,9 @@ __all__ = [
     "WPNotFoundError",
     "WPClientError",
     "MissingCredentialError",
+    # Editing
+    "EditingError",
+    "EditTargetNotFoundError",
     # Governance_Layer
     "GovernanceError",
     "FixNotFoundError",
@@ -225,6 +230,27 @@ class MissingCredentialError(PublishingError):
         super().__init__(
             f"Required credential '{credential_name}' is missing or not configured"
         )
+
+
+# --- Editing (Milestone 4) -----------------------------------------------------
+
+
+class EditingError(OrchestratorError):
+    """Base for all structural (DOM-based) editing failures.
+
+    Editing never writes to the live site itself — it is a pure transform that
+    produces new page HTML for a governed ``SuggestedFix``. A handled editing
+    failure (e.g. the requested anchor text or heading cannot be located in the
+    current page) is always this type or a subclass, never a bare exception.
+    """
+
+
+class EditTargetNotFoundError(EditingError):
+    """The requested edit's anchor/target could not be located in the page.
+
+    Raised instead of guessing a location, so a structural edit either lands on
+    the exact intended element or fails closed with no HTML produced.
+    """
 
 
 # --- Governance_Layer ---------------------------------------------------------
