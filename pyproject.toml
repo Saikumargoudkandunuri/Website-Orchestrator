@@ -29,6 +29,8 @@ dependencies = [
     "wo-growth",
     "wo-publishing-adapter",
     "wo-governance",
+    "wo-editing",
+    "wo-onboarding",
     "wo-api",
     "wo-e2e",
 ]
@@ -58,6 +60,8 @@ wo-engines = { workspace = true }
 wo-growth = { workspace = true }
 wo-publishing-adapter = { workspace = true }
 wo-governance = { workspace = true }
+wo-editing = { workspace = true }
+wo-onboarding = { workspace = true }
 wo-api = { workspace = true }
 wo-e2e = { workspace = true }
 
